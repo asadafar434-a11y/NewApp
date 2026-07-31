@@ -7,6 +7,11 @@
     "dev": "pnpm --filter @orbital/web dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "lint": "oxfmt --check \"apps/**/*.{ts,tsx}\" \"packages/**/*.ts\"",
+    "format": "oxfmt \"apps/**/*.{ts,tsx}\" \"packages/**/*.ts\""
+  },
+  "devDependencies": {
+    "oxfmt": "^0.61.0"
   }
 }
