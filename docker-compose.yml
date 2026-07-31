@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orbital
+      POSTGRES_PASSWORD: orbital
+      POSTGRES_DB: orbital
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orbital"]
+      interval: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: orbital
+      MINIO_ROOT_PASSWORD: orbital-local
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+
+volumes:
+  pgdata:
+  miniodata:
