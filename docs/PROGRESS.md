@@ -8,7 +8,7 @@
 | T-002 | packages/shared | done | 2026-07-31 |
 | T-003 | Скелет API + /health | done | 2026-07-31 |
 | T-004 | Docker Compose локально | done | 2026-07-31 |
-| T-005 | Vitest + первый тест | todo | |
+| T-005 | Vitest + первый тест | done | 2026-07-31 |
 | T-006 | CI GitHub Actions | todo | |
 | T-007 | Prisma init | todo | |
 | T-008 | Схема auth + Company | todo | |
