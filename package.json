@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "pnpm --filter @orbital/web dev",
     "build": "pnpm -r build",
+    "pretypecheck": "pnpm --filter @orbital/shared build",
     "typecheck": "pnpm -r typecheck",
+    "pretest": "pnpm --filter @orbital/shared build",
     "test": "pnpm -r test",
     "lint": "oxfmt --check \"apps/**/*.{ts,tsx}\" \"packages/**/*.ts\"",
     "format": "oxfmt \"apps/**/*.{ts,tsx}\" \"packages/**/*.ts\""
