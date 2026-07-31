@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { app } from "../src/app.js";
 
 describe("GET /api/v1/health", () => {
-  it("возвращает 200 и статус ok", async () => {
+  it("возвращает 200 и статус ok, db:false при недоступной БД", async () => {
     const res = await app.request("/api/v1/health");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "ok" });
+    expect(await res.json()).toEqual({ status: "ok", db: false });
   });
 });
 

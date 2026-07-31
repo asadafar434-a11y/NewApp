@@ -10,7 +10,7 @@
 | T-004 | Docker Compose локально | done | 2026-07-31 |
 | T-005 | Vitest + первый тест | done | 2026-07-31 |
 | T-006 | CI GitHub Actions | done | 2026-07-31 |
-| T-007 | Prisma init | todo | |
+| T-007 | Prisma init | done | 2026-07-31 |
 | T-008 | Схема auth + Company | todo | |
 | T-009 | Схема ядра | todo | |
 | T-010 | Схема остального | todo | |
