@@ -5,7 +5,7 @@
 | ID | Задача | Статус | Дата |
 |---|---|---|---|
 | T-001 | Монорепо pnpm | done | 2026-07-31 |
-| T-002 | packages/shared | todo | |
+| T-002 | packages/shared | done | 2026-07-31 |
 | T-003 | Скелет API + /health | todo | |
 | T-004 | Docker Compose локально | todo | |
 | T-005 | Vitest + первый тест | todo | |

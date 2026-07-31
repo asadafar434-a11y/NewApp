@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@orbital/shared": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@emotion/react": "11.14.0",

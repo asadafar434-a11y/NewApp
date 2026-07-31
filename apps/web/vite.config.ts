@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        // dev-алиас на исходники shared — не требует его пересборки при правках
+        '@orbital/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),
       },
     },
     server: {
