@@ -31,10 +31,12 @@ export default function Root() {
   const location = useLocation();
 
   useEffect(() => {
-    if (!isPending && !user) navigate("/auth", { replace: true });
+    if (isPending) return;
+    if (!user) navigate("/auth", { replace: true });
+    else if (!user.emailVerified) navigate("/verify-email", { replace: true });
   }, [isPending, user, navigate]);
 
-  if (isPending || !user) return null;
+  if (isPending || !user || !user.emailVerified) return null;
 
   const handleLogout = () => {
     logout();

@@ -1,4 +1,4 @@
-import { errorResponseSchema, type ErrorResponse } from "@orbital/shared";
+import { ERROR_CODES, errorResponseSchema, type ErrorResponse } from "@orbital/shared";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "/api/v1";
 
@@ -21,7 +21,7 @@ export class ApiClientError extends Error {
 
 /**
  * Fetch-обёртка для бизнес-эндпоинтов (не auth — тот идёт через lib/authClient).
- * credentials:'include' — та же кука сессии; 401 (кроме /me) уводит на /auth.
+ * credentials:'include' — та же кука сессии; 401 уводит на /auth, EMAIL_NOT_VERIFIED — на /verify-email.
  */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -30,13 +30,16 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
 
-  if (res.status === 401) {
-    window.location.href = "/auth";
-  }
-
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const error = parseApiError(body);
+
+    if (error?.code === ERROR_CODES.EMAIL_NOT_VERIFIED) {
+      window.location.href = "/verify-email";
+    } else if (res.status === 401) {
+      window.location.href = "/auth";
+    }
+
     throw new ApiClientError(
       res.status,
       error?.code ?? "UNKNOWN",

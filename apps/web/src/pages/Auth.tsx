@@ -376,6 +376,26 @@ export default function Auth() {
                 </div>
               </div>
 
+              {mode === "login" && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/reset-password")}
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: "var(--text-xs)",
+                    color: "var(--color-text-muted)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    alignSelf: "flex-end",
+                    marginTop: "calc(var(--space-4) * -1)",
+                  }}
+                >
+                  Забыли пароль?
+                </button>
+              )}
+
               {error && (
                 <p
                   style={{

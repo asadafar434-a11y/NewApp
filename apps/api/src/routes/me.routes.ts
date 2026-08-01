@@ -1,15 +1,20 @@
 import { Hono } from "hono";
-import { ERROR_CODES } from "@orbital/shared";
-import { auth } from "../lib/auth.js";
+import { requireAuth } from "../middleware/auth.js";
+import { prisma } from "../lib/prisma.js";
 
-/**
- * Минимальная версия — только чтобы проверить requireVerifiedEmail (T-013).
- * Полноценный /me с company/role и ctx-паттерном — T-016.
- */
-export const meRoutes = new Hono().get("/me", async (c) => {
-  const session = await auth.api.getSession({ headers: c.req.raw.headers });
-  if (!session) {
-    return c.json({ error: { code: ERROR_CODES.UNAUTHORIZED, message: "Требуется вход" } }, 401);
-  }
-  return c.json({ user: session.user });
+export const meRoutes = new Hono().get("/me", requireAuth, async (c) => {
+  const { userId, companyId, role } = c.get("auth");
+
+  const [user, company] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, emailVerified: true, image: true },
+    }),
+    prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
+      select: { id: true, name: true },
+    }),
+  ]);
+
+  return c.json({ user: { ...user, role }, company });
 });

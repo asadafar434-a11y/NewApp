@@ -1,6 +1,8 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import Root from "./pages/Root";
 import Auth from "./pages/Auth";
+import VerifyEmail from "./pages/VerifyEmail";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Hiring from "./pages/Hiring";
 import Finance from "./pages/Finance";
@@ -13,6 +15,14 @@ export const router = createBrowserRouter([
   {
     path: "/auth",
     Component: Auth,
+  },
+  {
+    path: "/verify-email",
+    Component: VerifyEmail,
+  },
+  {
+    path: "/reset-password",
+    Component: ResetPassword,
   },
   {
     path: "/",

@@ -1,7 +1,13 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { authClient } from "../lib/authClient";
 
-type User = { name: string; email: string; company: string; avatar: string };
+type User = {
+  name: string;
+  email: string;
+  company: string;
+  avatar: string;
+  emailVerified: boolean;
+};
 
 type AuthCtx = {
   user: User | null;
@@ -13,12 +19,18 @@ type AuthCtx = {
 
 const Ctx = createContext<AuthCtx | null>(null);
 
-function toUser(sessionUser: { name: string; email: string; company?: string | null }): User {
+function toUser(sessionUser: {
+  name: string;
+  email: string;
+  company?: string | null;
+  emailVerified: boolean;
+}): User {
   return {
     name: sessionUser.name,
     email: sessionUser.email,
     company: sessionUser.company || "",
     avatar: sessionUser.name[0]?.toUpperCase() || "?",
+    emailVerified: sessionUser.emailVerified,
   };
 }
 
@@ -36,6 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
       company,
+      // абсолютный URL: в dev API (порт 3000) и фронт (порт 8443) — разные origin,
+      // относительный "/" в письме резолвится от origin API, а не фронта
+      callbackURL: `${window.location.origin}/`,
     } as Parameters<typeof authClient.signUp.email>[0]);
     if (error) throw new Error(error.message || "Не удалось зарегистрироваться");
   };

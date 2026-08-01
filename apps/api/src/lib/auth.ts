@@ -38,10 +38,14 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 дней
     updateAge: 60 * 60 * 24, // скользящее продление раз в сутки
+    cookieCache: { enabled: true, maxAge: 300 }, // не ходить в БД за сессией на каждый запрос
   },
+  advanced: { useSecureCookies: env.NODE_ENV === "production" },
   user: {
     additionalFields: {
       company: { type: "string", required: true, input: true, returned: false },
+      // реальная колонка User.role (T-008) — просто делаем её видимой в session.user
+      role: { type: "string", required: false, input: false, defaultValue: "owner" },
     },
   },
   databaseHooks: {

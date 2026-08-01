@@ -5,7 +5,6 @@ import { auth } from "./lib/auth.js";
 import { env } from "./lib/env.js";
 import { logger } from "./lib/logger.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
-import { requireVerifiedEmail } from "./middleware/require-verified-email.js";
 import { healthRoutes } from "./routes/health.routes.js";
 import { meRoutes } from "./routes/me.routes.js";
 
@@ -26,8 +25,6 @@ app.use(async (c, next) => {
     "request",
   );
 });
-
-app.use(requireVerifiedEmail);
 
 app.onError(errorHandler);
 app.notFound(notFoundHandler);
