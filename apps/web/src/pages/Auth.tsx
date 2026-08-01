@@ -3,6 +3,20 @@ import { useNavigate } from "react-router";
 import { Brain, Eye, EyeOff, ArrowRight, Zap } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
+/** Better Auth отдаёт код и сообщение по-английски — переводим известные на русский. */
+const ERROR_MESSAGES: Record<string, string> = {
+  INVALID_EMAIL_OR_PASSWORD: "Неверный email или пароль",
+  EMAIL_NOT_VERIFIED: "Подтвердите email — мы отправили письмо со ссылкой",
+  PASSWORD_TOO_SHORT: "Пароль слишком короткий (минимум 8 символов)",
+  PASSWORD_TOO_LONG: "Пароль слишком длинный",
+  USER_ALREADY_EXISTS: "Этот email уже зарегистрирован",
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "Этот email уже зарегистрирован",
+};
+
+function translateError(message: string): string {
+  return ERROR_MESSAGES[message] ?? "Что-то пошло не так. Попробуйте ещё раз.";
+}
+
 export default function Auth() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
@@ -12,6 +26,7 @@ export default function Auth() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [signupDone, setSignupDone] = useState(false);
 
   const { login, signup } = useAuth();
   const navigate = useNavigate();
@@ -29,11 +44,15 @@ export default function Auth() {
     }
     setLoading(true);
     try {
-      if (mode === "login") await login(email, password);
-      else await signup(name, email, password, company || "Моя компания");
-      navigate("/");
-    } catch {
-      setError("Что-то пошло не так. Попробуйте ещё раз.");
+      if (mode === "login") {
+        await login(email, password);
+        navigate("/");
+      } else {
+        await signup(name, email, password, company || "Моя компания");
+        setSignupDone(true);
+      }
+    } catch (err) {
+      setError(translateError(err instanceof Error ? err.message : ""));
     } finally {
       setLoading(false);
     }
@@ -261,148 +280,164 @@ export default function Auth() {
               : "Начните работу с Orbital бесплатно"}
           </p>
 
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--space-4)",
-            }}
-          >
-            {mode === "signup" && (
-              <div>
-                <label style={labelStyle}>Имя</label>
-                <input
-                  style={inputStyle}
-                  placeholder="Иван Петров"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
-                />
-              </div>
-            )}
-
-            {mode === "signup" && (
-              <div>
-                <label style={labelStyle}>Компания</label>
-                <input
-                  style={inputStyle}
-                  placeholder="Acme Corp"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
-                />
-              </div>
-            )}
-
-            <div>
-              <label style={labelStyle}>Email</label>
-              <input
-                type="email"
-                style={inputStyle}
-                placeholder="ivan@company.ru"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
-              />
-            </div>
-
-            <div>
-              <label style={labelStyle}>Пароль</label>
-              <div style={{ position: "relative" }}>
-                <input
-                  type={showPw ? "text" : "password"}
-                  style={{ ...inputStyle, paddingRight: 44 }}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(!showPw)}
-                  style={{
-                    position: "absolute",
-                    right: 12,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 0,
-                    color: "var(--color-text-muted)",
-                  }}
-                >
-                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <p
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: "var(--text-sm)",
-                  color: "var(--color-accent-danger)",
-                  margin: 0,
-                  padding: "var(--space-3)",
-                  background: "rgba(239,68,68,0.08)",
-                  border: "1px solid rgba(239,68,68,0.2)",
-                  borderRadius: "var(--radius-md)",
-                }}
-              >
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
+          {signupDone ? (
+            <div
               style={{
                 fontFamily: "var(--font-body)",
-                fontSize: "var(--text-base)",
-                fontWeight: 600,
-                color: "white",
-                background: loading
-                  ? "rgba(91,110,245,0.5)"
-                  : "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
-                border: "none",
-                borderRadius: "var(--radius-lg)",
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-primary)",
                 padding: "var(--space-4)",
-                cursor: loading ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "var(--space-2)",
-                width: "100%",
-                transition: "opacity var(--duration-fast)",
-                marginTop: "var(--space-2)",
+                background: "var(--color-accent-glow)",
+                border: "1px solid rgba(91,110,245,0.25)",
+                borderRadius: "var(--radius-md)",
               }}
             >
-              {loading ? (
-                <span
-                  style={{
-                    width: 16,
-                    height: 16,
-                    border: "2px solid rgba(255,255,255,0.3)",
-                    borderTopColor: "white",
-                    borderRadius: "50%",
-                    display: "inline-block",
-                    animation: "spin 0.7s linear infinite",
-                  }}
-                />
-              ) : (
-                <>
-                  {mode === "login" ? "Войти" : "Создать аккаунт"}
-                  <ArrowRight size={16} />
-                </>
+              Проверьте почту {email} и перейдите по ссылке, чтобы подтвердить регистрацию.
+            </div>
+          ) : (
+            <form
+              onSubmit={handleSubmit}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--space-4)",
+              }}
+            >
+              {mode === "signup" && (
+                <div>
+                  <label style={labelStyle}>Имя</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="Иван Петров"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
+                  />
+                </div>
               )}
-            </button>
-          </form>
+
+              {mode === "signup" && (
+                <div>
+                  <label style={labelStyle}>Компания</label>
+                  <input
+                    style={inputStyle}
+                    placeholder="Acme Corp"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label style={labelStyle}>Email</label>
+                <input
+                  type="email"
+                  style={inputStyle}
+                  placeholder="ivan@company.ru"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
+                  onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Пароль</label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type={showPw ? "text" : "password"}
+                    style={{ ...inputStyle, paddingRight: 44 }}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(!showPw)}
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 0,
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <p
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-accent-danger)",
+                    margin: 0,
+                    padding: "var(--space-3)",
+                    background: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    borderRadius: "var(--radius-md)",
+                  }}
+                >
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: "var(--text-base)",
+                  fontWeight: 600,
+                  color: "white",
+                  background: loading
+                    ? "rgba(91,110,245,0.5)"
+                    : "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
+                  border: "none",
+                  borderRadius: "var(--radius-lg)",
+                  padding: "var(--space-4)",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "var(--space-2)",
+                  width: "100%",
+                  transition: "opacity var(--duration-fast)",
+                  marginTop: "var(--space-2)",
+                }}
+              >
+                {loading ? (
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      border: "2px solid rgba(255,255,255,0.3)",
+                      borderTopColor: "white",
+                      borderRadius: "50%",
+                      display: "inline-block",
+                      animation: "spin 0.7s linear infinite",
+                    }}
+                  />
+                ) : (
+                  <>
+                    {mode === "login" ? "Войти" : "Создать аккаунт"}
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
           <p
             style={{
@@ -419,6 +454,7 @@ export default function Auth() {
               onClick={() => {
                 setMode(mode === "login" ? "signup" : "login");
                 setError("");
+                setSignupDone(false);
               }}
               style={{
                 fontFamily: "var(--font-body)",

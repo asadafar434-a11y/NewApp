@@ -18,7 +18,7 @@
 | T-012 | Better Auth бэкенд | done | 2026-08-01 |
 | T-013 | Подтверждение email | done | 2026-08-01 |
 | T-014 | Сброс пароля | done | 2026-08-01 |
-| T-015 | Фронт auth + TanStack Query | todo | |
+| T-015 | Фронт auth + TanStack Query | done | 2026-08-01 |
 | T-016 | Защита роутов + /me | todo | |
 | T-017 | Тесты auth | todo | |
 | T-018 | Заявки CRUD | todo | |

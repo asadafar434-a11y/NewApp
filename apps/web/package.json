@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@orbital/shared": "workspace:*",
+    "@tanstack/react-query": "^5.62.0",
+    "better-auth": "^1.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@emotion/react": "11.14.0",

@@ -26,15 +26,15 @@ const NAV_ITEMS = [
 ];
 
 export default function Root() {
-  const { user, logout } = useAuth();
+  const { user, isPending, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    if (!user) navigate("/auth", { replace: true });
-  }, [user, navigate]);
+    if (!isPending && !user) navigate("/auth", { replace: true });
+  }, [isPending, user, navigate]);
 
-  if (!user) return null;
+  if (isPending || !user) return null;
 
   const handleLogout = () => {
     logout();
