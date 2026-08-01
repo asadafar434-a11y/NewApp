@@ -1,12 +1,66 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { env } from "./env.js";
+import { logger } from "./logger.js";
 import { prisma } from "./prisma.js";
 
 /**
- * Минимальный конфиг для CLI-генерации схемы (T-008).
- * Полная настройка (verify email, reset password, сессии) — T-012–T-014.
+ * Company создаётся после регистрации из поля company (additionalFields), которое сама
+ * User-таблица не хранит — before-хук вырезает поле перед записью, after-хук читает его
+ * из этой карты (см. docs/07-auth-and-security.md).
+ * Ключ — email, а не id: в before-хуке better-auth ещё не сгенерировал id пользователя
+ * (он присваивается внутри адаптера непосредственно перед записью в БД), а email уже
+ * нормализован (lowercase) и одинаков в before и after.
  */
+const pendingCompanyNames = new Map<string, string>();
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
-  emailAndPassword: { enabled: true },
+  baseURL: env.BETTER_AUTH_URL,
+  secret: env.BETTER_AUTH_SECRET,
+  trustedOrigins: [env.WEB_ORIGIN],
+  emailAndPassword: {
+    enabled: true,
+    // T-013 включит обязательное подтверждение (requireEmailVerification: true)
+    minPasswordLength: 8,
+    sendResetPassword: async ({ user, url }) => {
+      // T-014 подключит реальную отправку письма через Unisender Go
+      logger.info({ email: user.email, url }, "[auth] sendResetPassword");
+    },
+  },
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      // T-013 подключит реальную отправку письма через Unisender Go
+      logger.info({ email: user.email, url }, "[auth] sendVerificationEmail");
+    },
+  },
+  session: {
+    expiresIn: 60 * 60 * 24 * 30, // 30 дней
+    updateAge: 60 * 60 * 24, // скользящее продление раз в сутки
+  },
+  user: {
+    additionalFields: {
+      company: { type: "string", required: true, input: true, returned: false },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          const { company } = user as typeof user & { company: string };
+          pendingCompanyNames.set(user.email, company);
+          // better-auth мержит result.data поверх исходного объекта ({...actualData, ...result.data}),
+          // а не заменяет его целиком — пропуск ключа его не удалит, нужно явно undefined
+          return { data: { company: undefined } };
+        },
+        after: async (user) => {
+          const companyName = pendingCompanyNames.get(user.email);
+          pendingCompanyNames.delete(user.email);
+          if (companyName) {
+            await prisma.company.create({ data: { ownerId: user.id, name: companyName } });
+          }
+        },
+      },
+    },
+  },
 });

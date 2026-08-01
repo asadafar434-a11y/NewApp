@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
+import { auth } from "./lib/auth.js";
 import { env } from "./lib/env.js";
 import { logger } from "./lib/logger.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
@@ -27,4 +28,5 @@ app.use(async (c, next) => {
 app.onError(errorHandler);
 app.notFound(notFoundHandler);
 
+app.on(["GET", "POST"], "/api/v1/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/api/v1", healthRoutes);
