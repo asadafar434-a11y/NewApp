@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { sendEmail } from "./email/index.js";
 import { env } from "./env.js";
-import { logger } from "./logger.js";
 import { prisma } from "./prisma.js";
 
 /**
@@ -21,17 +21,17 @@ export const auth = betterAuth({
   trustedOrigins: [env.WEB_ORIGIN],
   emailAndPassword: {
     enabled: true,
-    // T-013 включит обязательное подтверждение (requireEmailVerification: true)
+    requireEmailVerification: true,
     minPasswordLength: 8,
     sendResetPassword: async ({ user, url }) => {
-      // T-014 подключит реальную отправку письма через Unisender Go
-      logger.info({ email: user.email, url }, "[auth] sendResetPassword");
+      await sendEmail("reset", user.email, { url, name: user.name });
     },
   },
   emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      // T-013 подключит реальную отправку письма через Unisender Go
-      logger.info({ email: user.email, url }, "[auth] sendVerificationEmail");
+      await sendEmail("verify", user.email, { url, name: user.name });
     },
   },
   session: {
