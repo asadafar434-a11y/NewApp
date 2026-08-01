@@ -12,7 +12,7 @@
 | T-006 | CI GitHub Actions | done | 2026-07-31 |
 | T-007 | Prisma init | done | 2026-07-31 |
 | T-008 | Схема auth + Company | done | 2026-08-01 |
-| T-009 | Схема ядра | todo | |
+| T-009 | Схема ядра | done | 2026-08-01 |
 | T-010 | Схема остального | todo | |
 | T-011 | Сиды | todo | |
 | T-012 | Better Auth бэкенд | todo | |

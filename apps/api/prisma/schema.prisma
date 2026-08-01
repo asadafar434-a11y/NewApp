@@ -81,7 +81,171 @@ model Company {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner         User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  requests      Request[]
+  specialists   Specialist[]
+  conversations Conversation[]
+  calls         ScheduledCall[]
 
   @@map("company")
+}
+
+enum RequestType {
+  hire
+  consult
+}
+
+enum RequestStatus {
+  open
+  in_progress
+  done
+  canceled
+}
+
+model Request {
+  id           String        @id @default(cuid())
+  companyId    String
+  type         RequestType
+  title        String
+  description  String
+  priceKopecks Int?
+  status       RequestStatus @default(open)
+  deletedAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  specialists Specialist[]
+
+  @@index([companyId, status])
+}
+
+enum SpecialistStatus {
+  new
+  contacted
+  scheduled
+  interviewed
+  hired
+  rejected
+  consult_scheduled
+  consult_done
+}
+
+model Specialist {
+  id           String           @id @default(cuid())
+  companyId    String
+  requestId    String
+  name         String
+  role         String
+  exp          String?
+  matchScore   Int?
+  matchReason  String?
+  location     String?
+  salary       String?
+  source       String?
+  status       SpecialistStatus @default(new)
+  skills       String[]         @default([])
+  about        String?
+  email        String
+  phone        String?
+  portfolioUrl String?
+  availability String?
+  timezone     String?
+  resumeKey    String?
+  avatarKey    String?
+  deletedAt    DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  company       Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  request       Request                 @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  statusChanges StatusChange[]
+  conversation  Conversation?
+  calls         ScheduledCall[]
+  accessTokens  SpecialistAccessToken[]
+
+  @@index([companyId, status])
+  @@index([requestId])
+}
+
+model StatusChange {
+  id           String           @id @default(cuid())
+  specialistId String
+  fromStatus   SpecialistStatus
+  toStatus     SpecialistStatus
+  createdAt    DateTime         @default(now())
+
+  specialist Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+
+  @@index([specialistId, createdAt])
+}
+
+model SpecialistAccessToken {
+  id           String   @id @default(cuid())
+  specialistId String
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  specialist Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id           String    @id @default(cuid())
+  companyId    String
+  specialistId String    @unique
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  specialist Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  messages   Message[]
+}
+
+enum MessageSender {
+  owner
+  specialist
+}
+
+enum MessageStatus {
+  sent
+  delivered
+  read
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String
+  sender         MessageSender
+  text           String
+  status         MessageStatus @default(sent)
+  createdAt      DateTime      @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+enum CallStatus {
+  scheduled
+  canceled
+  completed
+}
+
+model ScheduledCall {
+  id           String     @id @default(cuid())
+  companyId    String
+  specialistId String
+  scheduledAt  DateTime
+  link         String?
+  status       CallStatus @default(scheduled)
+  resultNote   String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  specialist Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, scheduledAt])
 }
