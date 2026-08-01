@@ -1,6 +1,6 @@
 # T-010: Схема остальных доменов
 
-**Фаза:** 1 · **Оценка:** 3ч · **Зависит от:** T-009 · **Статус:** todo
+**Фаза:** 1 · **Оценка:** 3ч · **Зависит от:** T-009 · **Статус:** done
 
 ## Цель
 Полная схема: Payment, FinanceRecord, Campaign, OpsTask/OpsRun, AiTask/AiMessage, TokenUsage,
