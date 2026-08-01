@@ -215,53 +215,57 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Better Auth ────────────────────────────────────────────────────────────
+// ─── Better Auth (сгенерировано `better-auth generate`, T-008) ───────────────
 model User {
   id            String    @id
   name          String
-  email         String    @unique
+  email         String
   emailVerified Boolean   @default(false)
   image         String?
-  role          String    @default("owner") // owner | admin
+  role          String    @default("owner") // owner | admin — наше расширение
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
   company       Company?
 
+  @@unique([email])
   @@map("user")
 }
 
 model Session {
   id        String   @id
-  userId    String
-  token     String   @unique
   expiresAt DateTime
-  ipAddress String?
-  userAgent String?
+  token     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([token])
+  @@index([userId])
   @@map("session")
 }
 
 model Account {
   id                    String    @id
-  userId                String
   accountId             String
   providerId            String
-  password              String?
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
+  idToken               String?
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
   scope                 String?
-  idToken               String?
+  password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("account")
 }
 
@@ -273,6 +277,7 @@ model Verification {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  @@index([identifier])
   @@map("verification")
 }
 
@@ -662,5 +667,5 @@ model AnalyticsEvent {
 }
 ```
 
-> **Открытый вопрос:** точный состав колонок Better Auth зависит от его версии — при T-008
-> сгенерировать схему командой Better Auth CLI и сверить с этим документом, приоритет у CLI.
+Better Auth-модели выше — точный вывод `better-auth generate` (better-auth 1.6.25, T-008), не
+ручной черновик. При обновлении версии better-auth схему нужно перегенерировать и свериться заново.
