@@ -1,19 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
-
-// requestPasswordReset реально обращается к БД (ищет пользователя), поэтому в отличие от
-// health.test.ts здесь нужен настоящий Postgres — та же orbital_test, что и в CI (ci.yml).
-// Переопределяем DATABASE_URL до импорта app.js, чтобы PrismaClient подключился к ней
-// (T-017 формализует эту инфраструктуру общим test/helpers/db.ts).
-process.env.DATABASE_URL = "postgresql://orbital:orbital@localhost:5432/orbital_test";
+import { prisma, truncateAll } from "./helpers/db.js";
 
 const { app } = await import("../src/app.js");
-const { prisma } = await import("../src/lib/prisma.js");
 
 const EMAIL = "auth-reset-test@t.ru";
 
 beforeEach(async () => {
-  await prisma.user.deleteMany({ where: { email: EMAIL } });
+  await truncateAll();
 });
 
 describe("POST /api/v1/auth/request-password-reset", () => {
