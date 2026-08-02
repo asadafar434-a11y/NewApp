@@ -25,40 +25,34 @@ import {
   AlertCircle,
   UserPlus,
   ChevronUp,
+  Trash2,
+  Pencil,
+  RefreshCw,
 } from "lucide-react";
-import type { RequestDTO, RequestType } from "@orbital/shared";
+import { toast } from "sonner";
+import type {
+  RequestDTO,
+  RequestType,
+  SpecialistDetailDTO,
+  SpecialistDTO,
+  SpecialistStatus,
+} from "@orbital/shared";
 import { useCreateRequest, useRequests } from "../api/requests";
-import { useCreateSpecialist } from "../api/specialists";
+import {
+  useCreateSpecialist,
+  useDeleteSpecialist,
+  useSpecialist,
+  useSpecialists,
+  useUpdateSpecialist,
+} from "../api/specialists";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-type Status = "new" | "contacted" | "scheduled" | "interviewed" | "hired" | "rejected";
-
-type Candidate = {
-  id: number;
-  name: string;
-  role: string;
-  exp: string;
-  match: number;
-  location: string;
-  salary: string;
-  source: string;
-  status: Status;
-  skills: string[];
-  about: string;
-  email: string;
-  phone: string;
-  portfolio?: string;
-  availability: string;
-  timezone: string;
-  lastActive: string;
-};
 
 type Message = { from: "ai" | "user"; text: string };
 
 type ScheduledCall = {
   id: string;
-  candidateId: number;
+  candidateId: string;
   candidateName: string;
   candidateRole: string;
   date: string;
@@ -68,107 +62,7 @@ type ScheduledCall = {
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const ALL_CANDIDATES: Candidate[] = [
-  {
-    id: 1,
-    name: "Анна Ковалёва",
-    role: "Senior UX Designer",
-    exp: "6 лет",
-    match: 94,
-    location: "Москва",
-    salary: "180 000 ₽",
-    source: "LinkedIn",
-    status: "new",
-    skills: ["Figma", "User Research", "Prototyping", "Design Systems", "Usability Testing"],
-    about:
-      "Специализируюсь на проектировании сложных SaaS-продуктов. Работала в Яндексе и нескольких стартапах. Обожаю находить баланс между метриками и пользовательским опытом.",
-    email: "anna.kovaleva@mail.ru",
-    phone: "+7 (916) 234-56-78",
-    portfolio: "kovaleva.design",
-    availability: "Через 2 недели",
-    timezone: "UTC+3",
-    lastActive: "2 часа назад",
-  },
-  {
-    id: 2,
-    name: "Дмитрий Орлов",
-    role: "Product Designer",
-    exp: "4 года",
-    match: 87,
-    location: "Санкт-Петербург",
-    salary: "150 000 ₽",
-    source: "Behance",
-    status: "contacted",
-    skills: ["Figma", "Motion Design", "Design Systems", "Prototyping"],
-    about:
-      "Дизайнер продуктов с фокусом на анимацию и микровзаимодействия. Создавал дизайн-систему для финтех-стартапа с нуля.",
-    email: "dmitry.orlov@gmail.com",
-    phone: "+7 (911) 345-67-89",
-    portfolio: "orlov.work",
-    availability: "Сразу",
-    timezone: "UTC+3",
-    lastActive: "5 минут назад",
-  },
-  {
-    id: 3,
-    name: "Мария Смирнова",
-    role: "UX/UI Designer",
-    exp: "5 лет",
-    match: 82,
-    location: "Казань",
-    salary: "140 000 ₽",
-    source: "HH.ru",
-    status: "scheduled",
-    skills: ["Figma", "Sketch", "HTML/CSS", "User Research", "Wireframing"],
-    about: "Работаю на стыке дизайна и разработки. Умею говорить с разработчиками на одном языке.",
-    email: "maria.smirnova@yandex.ru",
-    phone: "+7 (843) 456-78-90",
-    availability: "Через месяц",
-    timezone: "UTC+3",
-    lastActive: "1 день назад",
-  },
-  {
-    id: 4,
-    name: "Артём Новиков",
-    role: "Visual Designer",
-    exp: "3 года",
-    match: 76,
-    location: "Новосибирск",
-    salary: "120 000 ₽",
-    source: "LinkedIn",
-    status: "new",
-    skills: ["Illustrator", "Figma", "Branding", "After Effects"],
-    about: "Специалист по визуальной айдентике и брендингу. Работал с 40+ компаниями.",
-    email: "novikov.art@gmail.com",
-    phone: "+7 (913) 567-89-01",
-    portfolio: "novikov.design",
-    availability: "Через 3 недели",
-    timezone: "UTC+7",
-    lastActive: "3 часа назад",
-  },
-  {
-    id: 5,
-    name: "Екатерина Белова",
-    role: "Senior Product Designer",
-    exp: "7 лет",
-    match: 91,
-    location: "Москва",
-    salary: "200 000 ₽",
-    source: "Dribbble",
-    status: "new",
-    skills: ["Figma", "Design Systems", "User Research", "A/B Testing", "Leadership"],
-    about:
-      "Lead designer в e-commerce. Выстраивала дизайн-процессы с нуля, управляла командой 5 человек.",
-    email: "e.belova@design.ru",
-    phone: "+7 (925) 678-90-12",
-    portfolio: "belova.co",
-    availability: "Через 2 месяца",
-    timezone: "UTC+3",
-    lastActive: "30 минут назад",
-  },
-];
-
-const STATUS_META: Record<Status, { label: string; color: string; bg: string }> = {
+const STATUS_META: Record<SpecialistStatus, { label: string; color: string; bg: string }> = {
   new: { label: "Новый", color: "#8b90a0", bg: "rgba(139,144,160,0.12)" },
   contacted: {
     label: "Написали",
@@ -187,6 +81,16 @@ const STATUS_META: Record<Status, { label: string; color: string; bg: string }> 
   },
   hired: { label: "Нанят", color: "#10b981", bg: "rgba(16,185,129,0.12)" },
   rejected: { label: "Отказ", color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+  consult_scheduled: {
+    label: "Созвон назначен",
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.12)",
+  },
+  consult_done: {
+    label: "Консультация проведена",
+    color: "#10b981",
+    bg: "rgba(16,185,129,0.12)",
+  },
 };
 
 const AI_RESPONSES: Record<string, string> = {
@@ -243,7 +147,7 @@ function CandidateCard({
   onClick,
   selected,
 }: {
-  candidate: Candidate;
+  candidate: SpecialistDTO;
   onClick: () => void;
   selected: boolean;
 }) {
@@ -312,27 +216,29 @@ function CandidateCard({
           >
             {candidate.name}
           </span>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 3,
-              flexShrink: 0,
-              marginLeft: 8,
-            }}
-          >
-            <Star size={11} color="#f59e0b" fill="#f59e0b" />
-            <span
+          {candidate.matchScore != null && (
+            <div
               style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--color-text-primary)",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                flexShrink: 0,
+                marginLeft: 8,
               }}
             >
-              {candidate.match}%
-            </span>
-          </div>
+              <Star size={11} color="#f59e0b" fill="#f59e0b" />
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "var(--color-text-primary)",
+                }}
+              >
+                {candidate.matchScore}%
+              </span>
+            </div>
+          )}
         </div>
 
         <p
@@ -343,7 +249,8 @@ function CandidateCard({
             margin: "0 0 var(--space-2) 0",
           }}
         >
-          {candidate.role} · {candidate.exp}
+          {candidate.role}
+          {candidate.exp ? ` · ${candidate.exp}` : ""}
         </p>
 
         <div
@@ -360,7 +267,7 @@ function CandidateCard({
               color: "var(--color-text-muted)",
             }}
           >
-            {candidate.location}
+            {candidate.location ?? ""}
           </span>
           <span
             style={{
@@ -387,7 +294,7 @@ function ScheduleModal({
   onClose,
   onConfirm,
 }: {
-  candidate: Candidate;
+  candidate: SpecialistDetailDTO;
   onClose: () => void;
   onConfirm: (date: string, time: string) => void;
 }) {
@@ -629,7 +536,7 @@ function MessageModal({
   onClose,
   onSend,
 }: {
-  candidate: Candidate;
+  candidate: SpecialistDetailDTO;
   onClose: () => void;
   onSend: () => void;
 }) {
@@ -809,28 +716,100 @@ function MessageModal({
 
 // ─── Candidate Detail ─────────────────────────────────────────────────────────
 
+type EditForm = {
+  email: string;
+  phone: string;
+  location: string;
+  exp: string;
+  salary: string;
+  source: string;
+  availability: string;
+  timezone: string;
+  portfolioUrl: string;
+  about: string;
+  skillsText: string;
+};
+
+function toEditForm(candidate: SpecialistDetailDTO): EditForm {
+  return {
+    email: candidate.email,
+    phone: candidate.phone ?? "",
+    location: candidate.location ?? "",
+    exp: candidate.exp ?? "",
+    salary: candidate.salary ?? "",
+    source: candidate.source ?? "",
+    availability: candidate.availability ?? "",
+    timezone: candidate.timezone ?? "",
+    portfolioUrl: candidate.portfolioUrl ?? "",
+    about: candidate.about ?? "",
+    skillsText: candidate.skills.join(", "),
+  };
+}
+
 function CandidateDetail({
   candidate,
   onBack,
-  onStatusChange,
+  onDeleted,
   onSchedule,
   existingCall,
 }: {
-  candidate: Candidate;
+  candidate: SpecialistDetailDTO;
   onBack: () => void;
-  onStatusChange: (id: number, status: Status) => void;
+  onDeleted: () => void;
   onSchedule: (call: ScheduledCall) => void;
   existingCall?: ScheduledCall;
 }) {
   const [showSchedule, setShowSchedule] = useState(false);
   const [showMessage, setShowMessage] = useState(false);
   const [messageSent, setMessageSent] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [inlineToast, setInlineToast] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<EditForm>(() => toEditForm(candidate));
+  const updateSpecialist = useUpdateSpecialist(candidate.id);
+  const deleteSpecialist = useDeleteSpecialist();
   const sm = STATUS_META[candidate.status];
 
   const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    setInlineToast(msg);
+    setTimeout(() => setInlineToast(null), 3000);
+  };
+
+  const startEditing = () => {
+    setEditForm(toEditForm(candidate));
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      await updateSpecialist.mutateAsync({
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim() || undefined,
+        location: editForm.location.trim() || undefined,
+        exp: editForm.exp.trim() || undefined,
+        salary: editForm.salary.trim() || undefined,
+        source: editForm.source.trim() || undefined,
+        availability: editForm.availability.trim() || undefined,
+        timezone: editForm.timezone.trim() || undefined,
+        portfolioUrl: editForm.portfolioUrl.trim() || undefined,
+        about: editForm.about.trim() || undefined,
+        skillsText: editForm.skillsText,
+      });
+      setIsEditing(false);
+      toast.success("Профиль сохранён");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Не удалось сохранить профиль");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Удалить ${candidate.name} из заявки?`)) return;
+    try {
+      await deleteSpecialist.mutateAsync(candidate.id);
+      toast.success(`${candidate.name} удалён`);
+      onDeleted();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Не удалось удалить специалиста");
+    }
   };
 
   const handleScheduleConfirm = (date: string, time: string) => {
@@ -849,14 +828,12 @@ function CandidateDetail({
       link: `https://meet.orbital.ai/${candidate.id}-${Math.random().toString(36).slice(2, 8)}`,
     };
     onSchedule(call);
-    onStatusChange(candidate.id, "scheduled");
     setShowSchedule(false);
     showToast(`✓ Созвон с ${candidate.name.split(" ")[0]} запланирован на ${label} в ${time}`);
   };
 
   const handleMessageSent = () => {
     setMessageSent(true);
-    onStatusChange(candidate.id, "contacted");
     showToast(`✓ Сообщение отправлено ${candidate.name.split(" ")[0]}`);
   };
 
@@ -870,7 +847,7 @@ function CandidateDetail({
       }}
     >
       {/* Toast */}
-      {toast && (
+      {inlineToast && (
         <div
           style={{
             position: "fixed",
@@ -889,7 +866,7 @@ function CandidateDetail({
             animation: "slideUp 0.3s var(--ease-out)",
           }}
         >
-          {toast}
+          {inlineToast}
         </div>
       )}
 
@@ -900,6 +877,7 @@ function CandidateDetail({
           borderBottom: "1px solid var(--color-border-subtle)",
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
           gap: "var(--space-4)",
           flexShrink: 0,
         }}
@@ -929,6 +907,97 @@ function CandidateDetail({
             Назад
           </span>
         </button>
+
+        <div style={{ display: "flex", gap: "var(--space-2)" }}>
+          {isEditing ? (
+            <>
+              <button
+                onClick={() => setIsEditing(false)}
+                disabled={updateSpecialist.isPending}
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: "var(--text-xs)",
+                  color: "var(--color-text-secondary)",
+                  background: "var(--color-bg-elevated)",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "var(--space-2) var(--space-3)",
+                  cursor: "pointer",
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={updateSpecialist.isPending}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-2)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: "var(--text-xs)",
+                  fontWeight: 600,
+                  color: "white",
+                  background:
+                    "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
+                  border: "none",
+                  borderRadius: "var(--radius-md)",
+                  padding: "var(--space-2) var(--space-3)",
+                  cursor: updateSpecialist.isPending ? "not-allowed" : "pointer",
+                  opacity: updateSpecialist.isPending ? 0.7 : 1,
+                }}
+              >
+                {updateSpecialist.isPending && <Loader2 size={12} className="spin" />}
+                Сохранить
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={startEditing}
+                title="Редактировать"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 30,
+                  height: 30,
+                  background: "var(--color-bg-elevated)",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: "var(--radius-md)",
+                  cursor: "pointer",
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                <Pencil size={13} />
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteSpecialist.isPending}
+                title="Удалить"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 30,
+                  height: 30,
+                  background: "var(--color-bg-elevated)",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: "var(--radius-md)",
+                  cursor: deleteSpecialist.isPending ? "not-allowed" : "pointer",
+                  color: "var(--color-accent-danger)",
+                  opacity: deleteSpecialist.isPending ? 0.6 : 1,
+                }}
+              >
+                {deleteSpecialist.isPending ? (
+                  <Loader2 size={13} className="spin" />
+                ) : (
+                  <Trash2 size={13} />
+                )}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div style={{ padding: "var(--space-6)", flex: 1 }}>
@@ -981,19 +1050,21 @@ function CandidateDetail({
               >
                 {candidate.name}
               </h2>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <Star size={14} color="#f59e0b" fill="#f59e0b" />
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 700,
-                    color: "var(--color-text-primary)",
-                  }}
-                >
-                  {candidate.match}%
-                </span>
-              </div>
+              {candidate.matchScore != null && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <Star size={14} color="#f59e0b" fill="#f59e0b" />
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 700,
+                      color: "var(--color-text-primary)",
+                    }}
+                  >
+                    {candidate.matchScore}%
+                  </span>
+                </div>
+              )}
             </div>
             <p
               style={{
@@ -1012,6 +1083,34 @@ function CandidateDetail({
                 gap: "var(--space-3)",
               }}
             >
+              {candidate.exp && (
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontFamily: "var(--font-body)",
+                    fontSize: "var(--text-xs)",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  <Briefcase size={11} /> {candidate.exp}
+                </span>
+              )}
+              {candidate.location && (
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontFamily: "var(--font-body)",
+                    fontSize: "var(--text-xs)",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  <MapPin size={11} /> {candidate.location}
+                </span>
+              )}
               <span
                 style={{
                   display: "flex",
@@ -1022,37 +1121,17 @@ function CandidateDetail({
                   color: "var(--color-text-muted)",
                 }}
               >
-                <Briefcase size={11} /> {candidate.exp}
-              </span>
-              <span
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontFamily: "var(--font-body)",
-                  fontSize: "var(--text-xs)",
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                <MapPin size={11} /> {candidate.location}
-              </span>
-              <span
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontFamily: "var(--font-body)",
-                  fontSize: "var(--text-xs)",
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                <Clock size={11} /> Активен: {candidate.lastActive}
+                <Clock size={11} /> Добавлен:{" "}
+                {new Date(candidate.createdAt).toLocaleDateString("ru-RU", {
+                  day: "numeric",
+                  month: "long",
+                })}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Status */}
+        {/* Status — переходы статусов появятся в T-021, пока просто индикатор текущего */}
         <div
           style={{
             display: "flex",
@@ -1061,10 +1140,10 @@ function CandidateDetail({
             flexWrap: "wrap",
           }}
         >
-          {(Object.keys(STATUS_META) as Status[]).map((s) => (
-            <button
+          {(Object.keys(STATUS_META) as SpecialistStatus[]).map((s) => (
+            <span
               key={s}
-              onClick={() => onStatusChange(candidate.id, s)}
+              title="Смена статуса появится в T-021"
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: 10,
@@ -1077,13 +1156,12 @@ function CandidateDetail({
                 }`,
                 borderRadius: "var(--radius-full)",
                 padding: "3px 10px",
-                cursor: "pointer",
-                transition: "all var(--duration-fast)",
                 letterSpacing: "var(--tracking-wide)",
+                opacity: candidate.status === s ? 1 : 0.45,
               }}
             >
               {STATUS_META[s].label}
-            </button>
+            </span>
           ))}
         </div>
 
@@ -1216,16 +1294,14 @@ function CandidateDetail({
             marginBottom: "var(--space-5)",
           }}
         >
-          {[
-            { icon: Mail, label: "Email", value: candidate.email },
-            { icon: Phone, label: "Телефон", value: candidate.phone },
-            {
-              icon: Clock,
-              label: "Готов выйти",
-              value: candidate.availability,
-            },
-            { icon: MapPin, label: "Часовой пояс", value: candidate.timezone },
-          ].map(({ icon: Icon, label, value }) => (
+          {(
+            [
+              { icon: Mail, label: "Email", field: "email" as const },
+              { icon: Phone, label: "Телефон", field: "phone" as const },
+              { icon: Clock, label: "Готов выйти", field: "availability" as const },
+              { icon: MapPin, label: "Часовой пояс", field: "timezone" as const },
+            ] as const
+          ).map(({ icon: Icon, label, field }) => (
             <div
               key={label}
               style={{
@@ -1256,16 +1332,35 @@ function CandidateDetail({
                   {label}
                 </span>
               </div>
-              <span
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: "var(--text-sm)",
-                  color: "var(--color-text-primary)",
-                  fontWeight: 500,
-                }}
-              >
-                {value}
-              </span>
+              {isEditing ? (
+                <input
+                  value={editForm[field]}
+                  onChange={(e) => setEditForm((f) => ({ ...f, [field]: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    background: "var(--color-bg-surface)",
+                    border: "1px solid var(--color-border-default)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "var(--space-1) var(--space-2)",
+                    fontFamily: "var(--font-body)",
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-text-primary)",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              ) : (
+                <span
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-text-primary)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {candidate[field] || "—"}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -1285,6 +1380,7 @@ function CandidateDetail({
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              gap: "var(--space-3)",
             }}
           >
             <span
@@ -1292,21 +1388,44 @@ function CandidateDetail({
                 fontFamily: "var(--font-body)",
                 fontSize: "var(--text-sm)",
                 color: "var(--color-text-muted)",
+                flexShrink: 0,
               }}
             >
               Ожидания по зарплате
             </span>
-            <span
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "var(--text-lg)",
-                fontWeight: 800,
-                letterSpacing: "var(--tracking-tight)",
-                color: "var(--color-text-primary)",
-              }}
-            >
-              {candidate.salary}
-            </span>
+            {isEditing ? (
+              <input
+                value={editForm.salary}
+                onChange={(e) => setEditForm((f) => ({ ...f, salary: e.target.value }))}
+                placeholder="180 000 ₽"
+                style={{
+                  flex: 1,
+                  textAlign: "right",
+                  background: "var(--color-bg-surface)",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "var(--space-2) var(--space-3)",
+                  fontFamily: "var(--font-display)",
+                  fontSize: "var(--text-base)",
+                  fontWeight: 800,
+                  color: "var(--color-text-primary)",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            ) : (
+              <span
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: "var(--text-lg)",
+                  fontWeight: 800,
+                  letterSpacing: "var(--tracking-tight)",
+                  color: "var(--color-text-primary)",
+                }}
+              >
+                {candidate.salary || "—"}
+              </span>
+            )}
           </div>
         </div>
 
@@ -1324,17 +1443,39 @@ function CandidateDetail({
           >
             О себе
           </p>
-          <p
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: "var(--text-sm)",
-              color: "var(--color-text-secondary)",
-              lineHeight: "var(--leading-normal)",
-              margin: 0,
-            }}
-          >
-            {candidate.about}
-          </p>
+          {isEditing ? (
+            <textarea
+              value={editForm.about}
+              onChange={(e) => setEditForm((f) => ({ ...f, about: e.target.value }))}
+              rows={4}
+              style={{
+                width: "100%",
+                background: "var(--color-bg-elevated)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-lg)",
+                padding: "var(--space-3) var(--space-4)",
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-primary)",
+                lineHeight: "var(--leading-normal)",
+                outline: "none",
+                resize: "vertical",
+                boxSizing: "border-box",
+              }}
+            />
+          ) : (
+            <p
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-secondary)",
+                lineHeight: "var(--leading-normal)",
+                margin: 0,
+              }}
+            >
+              {candidate.about || "—"}
+            </p>
+          )}
         </div>
 
         {/* Skills */}
@@ -1351,47 +1492,113 @@ function CandidateDetail({
           >
             Навыки
           </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
-            {candidate.skills.map((s) => (
-              <span
-                key={s}
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: "var(--text-xs)",
-                  fontWeight: 500,
-                  color: "var(--color-text-secondary)",
-                  background: "var(--color-bg-elevated)",
-                  border: "1px solid var(--color-border-default)",
-                  borderRadius: "var(--radius-full)",
-                  padding: "3px 10px",
-                }}
-              >
-                {s}
-              </span>
-            ))}
-          </div>
+          {isEditing ? (
+            <input
+              value={editForm.skillsText}
+              onChange={(e) => setEditForm((f) => ({ ...f, skillsText: e.target.value }))}
+              placeholder="Figma, User Research, Prototyping"
+              style={{
+                width: "100%",
+                background: "var(--color-bg-elevated)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-lg)",
+                padding: "var(--space-3) var(--space-4)",
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-primary)",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+              {candidate.skills.length === 0 ? (
+                <span
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: "var(--text-xs)",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  —
+                </span>
+              ) : (
+                candidate.skills.map((s) => (
+                  <span
+                    key={s}
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontSize: "var(--text-xs)",
+                      fontWeight: 500,
+                      color: "var(--color-text-secondary)",
+                      background: "var(--color-bg-elevated)",
+                      border: "1px solid var(--color-border-default)",
+                      borderRadius: "var(--radius-full)",
+                      padding: "3px 10px",
+                    }}
+                  >
+                    {s}
+                  </span>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Source + portfolio */}
-        {candidate.portfolio && (
-          <a
-            href={`https://${candidate.portfolio}`}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--space-2)",
-              fontFamily: "var(--font-body)",
-              fontSize: "var(--text-sm)",
-              color: "var(--color-accent-primary)",
-              textDecoration: "none",
-              fontWeight: 500,
-            }}
-          >
-            <ExternalLink size={14} />
-            {candidate.portfolio}
-          </a>
+        {/* Portfolio */}
+        {isEditing ? (
+          <div style={{ marginBottom: "var(--space-5)" }}>
+            <p
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                color: "var(--color-text-muted)",
+                letterSpacing: "var(--tracking-wider)",
+                textTransform: "uppercase",
+                margin: "0 0 var(--space-3) 0",
+              }}
+            >
+              Портфолио
+            </p>
+            <input
+              value={editForm.portfolioUrl}
+              onChange={(e) => setEditForm((f) => ({ ...f, portfolioUrl: e.target.value }))}
+              placeholder="https://…"
+              style={{
+                width: "100%",
+                background: "var(--color-bg-elevated)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-lg)",
+                padding: "var(--space-3) var(--space-4)",
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-primary)",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+        ) : (
+          candidate.portfolioUrl && (
+            <a
+              href={candidate.portfolioUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-2)",
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-sm)",
+                color: "var(--color-accent-primary)",
+                textDecoration: "none",
+                fontWeight: 500,
+              }}
+            >
+              <ExternalLink size={14} />
+              {candidate.portfolioUrl}
+            </a>
+          )
         )}
       </div>
 
@@ -1410,7 +1617,11 @@ function CandidateDetail({
         />
       )}
 
-      <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }`}</style>
+      <style>{`
+        @keyframes slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 0.8s linear infinite; }
+      `}</style>
     </div>
   );
 }
@@ -1694,13 +1905,11 @@ function AIChat({ onSearch }: { onSearch: (q: string) => void }) {
 
 function CallsPanel({
   calls,
-  candidates,
   onSelectCandidate,
   onCancelCall,
 }: {
   calls: ScheduledCall[];
-  candidates: Candidate[];
-  onSelectCandidate: (c: Candidate) => void;
+  onSelectCandidate: (id: string) => void;
   onCancelCall: (id: string) => void;
 }) {
   const sorted = [...calls].sort((a, b) => {
@@ -1721,7 +1930,6 @@ function CallsPanel({
     });
 
   const CallRow = ({ call, isPast }: { call: ScheduledCall; isPast?: boolean }) => {
-    const candidate = candidates.find((c) => c.id === call.candidateId);
     return (
       <div
         style={{
@@ -1872,31 +2080,29 @@ function CallsPanel({
               <Video size={12} />
               Открыть звонок
             </a>
-            {candidate && (
-              <button
-                onClick={() => onSelectCandidate(candidate)}
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: "var(--text-xs)",
-                  fontWeight: 500,
-                  color: "var(--color-text-secondary)",
-                  background: "var(--color-bg-elevated)",
-                  border: "1px solid var(--color-border-default)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "var(--space-2) var(--space-3)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--space-1)",
-                  transition: "all var(--duration-fast)",
-                  whiteSpace: "nowrap",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text-primary)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-secondary)")}
-              >
-                Профиль
-              </button>
-            )}
+            <button
+              onClick={() => onSelectCandidate(call.candidateId)}
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-xs)",
+                fontWeight: 500,
+                color: "var(--color-text-secondary)",
+                background: "var(--color-bg-elevated)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-md)",
+                padding: "var(--space-2) var(--space-3)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-1)",
+                transition: "all var(--duration-fast)",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text-primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-secondary)")}
+            >
+              Профиль
+            </button>
           </div>
         )}
       </div>
@@ -2810,35 +3016,193 @@ function RequestSelector({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
+function CandidateListSkeleton() {
+  return (
+    <div>
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            gap: "var(--space-4)",
+            padding: "var(--space-4) var(--space-5)",
+            borderBottom: "1px solid var(--color-border-subtle)",
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "var(--radius-full)",
+              background: "var(--color-bg-elevated)",
+              animation: "pulse 1.5s ease-in-out infinite",
+              flexShrink: 0,
+            }}
+          />
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                width: "60%",
+                height: 12,
+                borderRadius: "var(--radius-sm)",
+                background: "var(--color-bg-elevated)",
+                animation: "pulse 1.5s ease-in-out infinite",
+                marginBottom: "var(--space-2)",
+              }}
+            />
+            <div
+              style={{
+                width: "40%",
+                height: 10,
+                borderRadius: "var(--radius-sm)",
+                background: "var(--color-bg-elevated)",
+                animation: "pulse 1.5s ease-in-out infinite",
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <div style={{ padding: "var(--space-6)" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--space-5)",
+          marginBottom: "var(--space-6)",
+        }}
+      >
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: "var(--radius-full)",
+            background: "var(--color-bg-elevated)",
+            animation: "pulse 1.5s ease-in-out infinite",
+            flexShrink: 0,
+          }}
+        />
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              width: "50%",
+              height: 20,
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-bg-elevated)",
+              animation: "pulse 1.5s ease-in-out infinite",
+              marginBottom: "var(--space-3)",
+            }}
+          />
+          <div
+            style={{
+              width: "35%",
+              height: 14,
+              borderRadius: "var(--radius-sm)",
+              background: "var(--color-bg-elevated)",
+              animation: "pulse 1.5s ease-in-out infinite",
+            }}
+          />
+        </div>
+      </div>
+      {[0, 1].map((i) => (
+        <div
+          key={i}
+          style={{
+            height: 60,
+            borderRadius: "var(--radius-lg)",
+            background: "var(--color-bg-elevated)",
+            animation: "pulse 1.5s ease-in-out infinite",
+            marginBottom: "var(--space-4)",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div
+      style={{
+        padding: "var(--space-8)",
+        textAlign: "center",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "var(--space-3)",
+      }}
+    >
+      <AlertCircle size={20} color="var(--color-accent-danger)" />
+      <p
+        style={{
+          fontFamily: "var(--font-body)",
+          fontSize: "var(--text-sm)",
+          color: "var(--color-text-secondary)",
+          margin: 0,
+        }}
+      >
+        {message}
+      </p>
+      <button
+        onClick={onRetry}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--space-2)",
+          fontFamily: "var(--font-body)",
+          fontSize: "var(--text-xs)",
+          fontWeight: 600,
+          color: "var(--color-accent-primary)",
+          background: "var(--color-accent-glow)",
+          border: "1px solid rgba(91,110,245,0.3)",
+          borderRadius: "var(--radius-md)",
+          padding: "var(--space-2) var(--space-3)",
+          cursor: "pointer",
+        }}
+      >
+        <RefreshCw size={12} />
+        Повторить
+      </button>
+    </div>
+  );
+}
+
 export default function Hiring() {
-  const [candidates, setCandidates] = useState<Candidate[]>(ALL_CANDIDATES);
-  const [selected, setSelected] = useState<Candidate | null>(null);
-  const [filter, setFilter] = useState<Status | "all">("all");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<SpecialistStatus | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [scheduledCalls, setScheduledCalls] = useState<ScheduledCall[]>([
-    // pre-seeded so user can see the panel right away
-    {
-      id: "seed-1",
-      candidateId: 3,
-      candidateName: "Мария Смирнова",
-      candidateRole: "UX/UI Designer",
-      date: (() => {
-        const d = new Date();
-        d.setDate(d.getDate() + 2);
-        return d.toISOString().split("T")[0];
-      })(),
-      time: "11:00",
-      link: "https://meet.orbital.ai/seed-abc123",
-    },
-  ]);
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+  const [scheduledCalls, setScheduledCalls] = useState<ScheduledCall[]>([]);
   const [middleTab, setMiddleTab] = useState<"candidates" | "calls">("candidates");
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [showAddSpecialist, setShowAddSpecialist] = useState(false);
 
-  const handleStatusChange = (id: number, status: Status) => {
-    setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
-  };
+  const listQuery = useSpecialists(
+    {
+      requestId: activeRequestId ?? undefined,
+      status: filter !== "all" ? filter : undefined,
+      search: debouncedSearch || undefined,
+      limit: 100,
+    },
+    { enabled: !!activeRequestId },
+  );
+  const specialists = listQuery.data?.items ?? [];
+
+  const detailQuery = useSpecialist(selectedId ?? "");
 
   const handleSchedule = (call: ScheduledCall) => {
     setScheduledCalls((prev) => {
@@ -2849,31 +3213,14 @@ export default function Hiring() {
 
   const handleCancelCall = (id: string) => {
     setScheduledCalls((prev) => prev.filter((c) => c.id !== id));
-    const call = scheduledCalls.find((c) => c.id === id);
-    if (call) handleStatusChange(call.candidateId, "contacted");
   };
 
   const handleSearch = (q: string) => setSearchQuery(q);
 
-  const filtered = candidates.filter((c) => {
-    if (filter !== "all" && c.status !== filter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        c.name.toLowerCase().includes(q) ||
-        c.role.toLowerCase().includes(q) ||
-        c.skills.some((s) => s.toLowerCase().includes(q))
-      );
-    }
-    return true;
-  });
-
-  const counts = Object.fromEntries(
-    (Object.keys(STATUS_META) as Status[]).map((s) => [
-      s,
-      candidates.filter((c) => c.status === s).length,
-    ]),
-  );
+  const handleSelectRequest = (id: string | null) => {
+    setActiveRequestId(id);
+    setSelectedId(null);
+  };
 
   const TAB_BTN = (tab: "candidates" | "calls", label: string, badge?: number) => (
     <button
@@ -2987,7 +3334,7 @@ export default function Hiring() {
             padding: "0 var(--space-4)",
           }}
         >
-          {TAB_BTN("candidates", "Кандидаты", candidates.length)}
+          {TAB_BTN("candidates", "Кандидаты", specialists.length)}
           {TAB_BTN(
             "calls",
             "Созвоны",
@@ -2997,7 +3344,7 @@ export default function Hiring() {
 
         <RequestSelector
           activeId={activeRequestId}
-          onSelect={setActiveRequestId}
+          onSelect={handleSelectRequest}
           onNew={() => setShowNewRequest(true)}
         />
 
@@ -3098,54 +3445,75 @@ export default function Hiring() {
                     transition: "all var(--duration-fast)",
                   }}
                 >
-                  Все ({candidates.length})
+                  Все ({specialists.length})
                 </button>
-                {(Object.keys(STATUS_META) as Status[])
-                  .filter((s) => counts[s] > 0)
-                  .map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setFilter(s)}
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: 10,
-                        letterSpacing: "var(--tracking-wide)",
-                        color: filter === s ? STATUS_META[s].color : "var(--color-text-muted)",
-                        background: filter === s ? STATUS_META[s].bg : "transparent",
-                        border: `1px solid ${
-                          filter === s ? STATUS_META[s].color + "40" : "transparent"
-                        }`,
-                        borderRadius: "var(--radius-full)",
-                        padding: "2px 8px",
-                        cursor: "pointer",
-                        transition: "all var(--duration-fast)",
-                      }}
-                    >
-                      {STATUS_META[s].label} ({counts[s]})
-                    </button>
-                  ))}
+                {(Object.keys(STATUS_META) as SpecialistStatus[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setFilter(s)}
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                      letterSpacing: "var(--tracking-wide)",
+                      color: filter === s ? STATUS_META[s].color : "var(--color-text-muted)",
+                      background: filter === s ? STATUS_META[s].bg : "transparent",
+                      border: `1px solid ${
+                        filter === s ? STATUS_META[s].color + "40" : "transparent"
+                      }`,
+                      borderRadius: "var(--radius-full)",
+                      padding: "2px 8px",
+                      cursor: "pointer",
+                      transition: "all var(--duration-fast)",
+                    }}
+                  >
+                    {STATUS_META[s].label}
+                  </button>
+                ))}
               </div>
             </div>
             <div style={{ flex: 1, overflowY: "auto" }}>
-              {filtered.length === 0 ? (
+              {!activeRequestId ? (
                 <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
                   <p
                     style={{
                       fontFamily: "var(--font-body)",
                       fontSize: "var(--text-sm)",
                       color: "var(--color-text-muted)",
+                      margin: 0,
                     }}
                   >
-                    Нет кандидатов
+                    Сначала выберите или создайте заявку
+                  </p>
+                </div>
+              ) : listQuery.isLoading ? (
+                <CandidateListSkeleton />
+              ) : listQuery.isError ? (
+                <InlineError
+                  message="Не удалось загрузить специалистов"
+                  onRetry={() => listQuery.refetch()}
+                />
+              ) : specialists.length === 0 ? (
+                <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
+                  <p
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontSize: "var(--text-sm)",
+                      color: "var(--color-text-muted)",
+                      margin: 0,
+                    }}
+                  >
+                    {filter !== "all" || debouncedSearch
+                      ? "Ничего не найдено по текущему фильтру"
+                      : "Специалистов пока нет — добавьте первого"}
                   </p>
                 </div>
               ) : (
-                filtered.map((c) => (
+                specialists.map((c) => (
                   <CandidateCard
                     key={c.id}
                     candidate={c}
-                    onClick={() => setSelected(c)}
-                    selected={selected?.id === c.id}
+                    onClick={() => setSelectedId(c.id)}
+                    selected={selectedId === c.id}
                   />
                 ))
               )}
@@ -3164,16 +3532,15 @@ export default function Hiring() {
                   letterSpacing: "var(--tracking-wide)",
                 }}
               >
-                {filtered.length} из {candidates.length} кандидатов
+                {specialists.length} специалистов
               </span>
             </div>
           </>
         ) : (
           <CallsPanel
             calls={scheduledCalls}
-            candidates={candidates}
-            onSelectCandidate={(c) => {
-              setSelected(c);
+            onSelectCandidate={(id) => {
+              setSelectedId(id);
               setMiddleTab("candidates");
             }}
             onCancelCall={handleCancelCall}
@@ -3190,15 +3557,24 @@ export default function Hiring() {
           flexDirection: "column",
         }}
       >
-        {selected ? (
-          <CandidateDetail
-            key={selected.id}
-            candidate={candidates.find((c) => c.id === selected.id)!}
-            onBack={() => setSelected(null)}
-            onStatusChange={handleStatusChange}
-            onSchedule={handleSchedule}
-            existingCall={scheduledCalls.find((c) => c.candidateId === selected.id)}
-          />
+        {selectedId ? (
+          detailQuery.isLoading ? (
+            <DetailSkeleton />
+          ) : detailQuery.isError ? (
+            <InlineError
+              message="Не удалось загрузить профиль специалиста"
+              onRetry={() => detailQuery.refetch()}
+            />
+          ) : detailQuery.data ? (
+            <CandidateDetail
+              key={detailQuery.data.id}
+              candidate={detailQuery.data}
+              onBack={() => setSelectedId(null)}
+              onDeleted={() => setSelectedId(null)}
+              onSchedule={handleSchedule}
+              existingCall={scheduledCalls.find((c) => c.candidateId === selectedId)}
+            />
+          ) : null
         ) : (
           <div
             style={{
