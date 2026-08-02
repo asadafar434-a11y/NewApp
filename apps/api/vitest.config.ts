@@ -15,6 +15,9 @@ export default defineConfig({
       DATABASE_URL: "postgresql://test:test@localhost:5499/test?connect_timeout=1",
       BETTER_AUTH_SECRET: "test-secret-at-least-32-characters-long",
       BETTER_AUTH_URL: "http://localhost:3000/api/v1/auth",
+      // Тот же MinIO из docker-compose.yml, что и для dev, но отдельный бакет —
+      // как orbital_test для Postgres. Создаётся лениво при первом обращении.
+      S3_BUCKET: "orbital-test",
     },
   },
 });

@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect, type CSSProperties, type FocusEvent } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  type ChangeEvent,
+  type CSSProperties,
+  type FocusEvent,
+} from "react";
 import {
   Search,
   Sparkles,
@@ -28,6 +35,8 @@ import {
   Trash2,
   Pencil,
   RefreshCw,
+  Upload,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -36,6 +45,7 @@ import type {
   SpecialistDetailDTO,
   SpecialistDTO,
   SpecialistStatus,
+  UploadKind,
 } from "@orbital/shared";
 import { useCreateRequest, useRequests } from "../api/requests";
 import {
@@ -46,6 +56,7 @@ import {
   useSpecialists,
   useUpdateSpecialist,
 } from "../api/specialists";
+import { specialistFileUrl, useUploadFile } from "../api/uploads";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -160,6 +171,102 @@ const TIME_SLOTS = [
   "18:00",
 ];
 
+// ─── File Upload Field ─────────────────────────────────────────────────────────
+
+/** Общее для формы создания и режима редактирования — presign+PUT спрятаны в useUploadFile,
+ * компонент только показывает статус и хранит итоговый ключ до сабмита формы. */
+function FileUploadField({
+  label,
+  kind,
+  accept,
+  fileKey,
+  onChange,
+}: {
+  label: string;
+  kind: UploadKind;
+  accept: string;
+  fileKey: string | null | undefined;
+  onChange: (key: string | null) => void;
+}) {
+  const upload = useUploadFile();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const key = await upload.mutateAsync({ file, kind });
+      onChange(key);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Не удалось загрузить файл");
+    } finally {
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: "var(--space-4)" }}>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 11,
+          color: "var(--color-text-muted)",
+          letterSpacing: "var(--tracking-wider)",
+          textTransform: "uppercase",
+          margin: "0 0 var(--space-2) 0",
+          display: "block",
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--space-2)",
+            fontFamily: "var(--font-body)",
+            fontSize: "var(--text-xs)",
+            fontWeight: 500,
+            color: "var(--color-text-secondary)",
+            background: "var(--color-bg-elevated)",
+            border: "1px solid var(--color-border-default)",
+            borderRadius: "var(--radius-md)",
+            padding: "var(--space-2) var(--space-3)",
+            cursor: upload.isPending ? "not-allowed" : "pointer",
+            opacity: upload.isPending ? 0.6 : 1,
+          }}
+        >
+          {upload.isPending ? <Loader2 size={13} className="spin" /> : <Upload size={13} />}
+          {fileKey ? "Заменить файл" : "Выбрать файл"}
+          <input
+            ref={inputRef}
+            type="file"
+            accept={accept}
+            onChange={handleFileChange}
+            disabled={upload.isPending}
+            style={{ display: "none" }}
+          />
+        </label>
+        {fileKey && (
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              color: "var(--color-accent-success)",
+              fontFamily: "var(--font-body)",
+              fontSize: "var(--text-xs)",
+            }}
+          >
+            <Check size={13} /> Загружено
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Candidate Card ───────────────────────────────────────────────────────────
 
 function CandidateCard({
@@ -197,25 +304,39 @@ function CandidateCard({
       }}
     >
       {/* Avatar */}
-      <div
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: "var(--radius-full)",
-          background:
-            "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--text-base)",
-          fontWeight: 800,
-          color: "white",
-          flexShrink: 0,
-        }}
-      >
-        {candidate.name[0]}
-      </div>
+      {candidate.avatarKey ? (
+        <img
+          src={specialistFileUrl(candidate.id, "avatar")}
+          alt={candidate.name}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: "var(--radius-full)",
+            objectFit: "cover",
+            flexShrink: 0,
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: "var(--radius-full)",
+            background:
+              "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "var(--font-display)",
+            fontSize: "var(--text-base)",
+            fontWeight: 800,
+            color: "white",
+            flexShrink: 0,
+          }}
+        >
+          {candidate.name[0]}
+        </div>
+      )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -787,6 +908,8 @@ function CandidateDetail({
   const [inlineToast, setInlineToast] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<EditForm>(() => toEditForm(candidate));
+  const [resumeKey, setResumeKey] = useState(candidate.resumeKey);
+  const [avatarKey, setAvatarKey] = useState(candidate.avatarKey);
   const updateSpecialist = useUpdateSpecialist(candidate.id);
   const deleteSpecialist = useDeleteSpecialist();
   const changeStatus = useChangeSpecialistStatus(candidate.id);
@@ -809,6 +932,8 @@ function CandidateDetail({
 
   const startEditing = () => {
     setEditForm(toEditForm(candidate));
+    setResumeKey(candidate.resumeKey);
+    setAvatarKey(candidate.avatarKey);
     setIsEditing(true);
   };
 
@@ -826,6 +951,8 @@ function CandidateDetail({
         portfolioUrl: editForm.portfolioUrl.trim() || undefined,
         about: editForm.about.trim() || undefined,
         skillsText: editForm.skillsText,
+        resumeKey: resumeKey ?? undefined,
+        avatarKey: avatarKey ?? undefined,
       });
       setIsEditing(false);
       toast.success("Профиль сохранён");
@@ -1043,25 +1170,39 @@ function CandidateDetail({
             alignItems: "flex-start",
           }}
         >
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: "var(--radius-full)",
-              background:
-                "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "var(--font-display)",
-              fontSize: "var(--text-xl)",
-              fontWeight: 800,
-              color: "white",
-              flexShrink: 0,
-            }}
-          >
-            {candidate.name[0]}
-          </div>
+          {avatarKey ? (
+            <img
+              src={specialistFileUrl(candidate.id, "avatar")}
+              alt={candidate.name}
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: "var(--radius-full)",
+                objectFit: "cover",
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: "var(--radius-full)",
+                background:
+                  "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontFamily: "var(--font-display)",
+                fontSize: "var(--text-xl)",
+                fontWeight: 800,
+                color: "white",
+                flexShrink: 0,
+              }}
+            >
+              {candidate.name[0]}
+            </div>
+          )}
           <div style={{ flex: 1 }}>
             <div
               style={{
@@ -1274,6 +1415,52 @@ function CandidateDetail({
             {messageSent ? "Написано" : "Написать"}
           </button>
         </div>
+
+        {/* Резюме и аватар */}
+        {isEditing ? (
+          <>
+            <FileUploadField
+              label="Аватар"
+              kind="avatar"
+              accept="image/jpeg,image/png,image/webp"
+              fileKey={avatarKey}
+              onChange={(key) => setAvatarKey(key ?? undefined)}
+            />
+            <FileUploadField
+              label="Резюме (PDF)"
+              kind="resume"
+              accept="application/pdf"
+              fileKey={resumeKey}
+              onChange={(key) => setResumeKey(key ?? undefined)}
+            />
+          </>
+        ) : (
+          candidate.resumeKey && (
+            <a
+              href={specialistFileUrl(candidate.id, "resume")}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-2)",
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-sm)",
+                fontWeight: 500,
+                color: "var(--color-accent-primary)",
+                textDecoration: "none",
+                background: "var(--color-bg-elevated)",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "var(--radius-lg)",
+                padding: "var(--space-3) var(--space-4)",
+                marginBottom: "var(--space-5)",
+              }}
+            >
+              <FileText size={14} />
+              Резюме (PDF)
+            </a>
+          )
+        )}
 
         {/* Scheduled badge */}
         {existingCall && (
@@ -2636,6 +2823,8 @@ function AddSpecialistModal({ requestId, onClose }: { requestId: string; onClose
   const [portfolioUrl, setPortfolioUrl] = useState("");
   const [availability, setAvailability] = useState("");
   const [timezone, setTimezone] = useState("");
+  const [resumeKey, setResumeKey] = useState<string | null>(null);
+  const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const createSpecialist = useCreateSpecialist();
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -2658,6 +2847,8 @@ function AddSpecialistModal({ requestId, onClose }: { requestId: string; onClose
       portfolioUrl: portfolioUrl.trim() || undefined,
       availability: availability.trim() || undefined,
       timezone: timezone.trim() || undefined,
+      resumeKey: resumeKey ?? undefined,
+      avatarKey: avatarKey ?? undefined,
     });
     onClose();
   };
@@ -2875,6 +3066,20 @@ function AddSpecialistModal({ requestId, onClose }: { requestId: string; onClose
               value={timezone}
               onChange={setTimezone}
               placeholder="UTC+3"
+            />
+            <FileUploadField
+              label="Резюме (PDF)"
+              kind="resume"
+              accept="application/pdf"
+              fileKey={resumeKey}
+              onChange={setResumeKey}
+            />
+            <FileUploadField
+              label="Аватар"
+              kind="avatar"
+              accept="image/jpeg,image/png,image/webp"
+              fileKey={avatarKey}
+              onChange={setAvatarKey}
             />
           </div>
         )}

@@ -3,10 +3,13 @@ import { Hono } from "hono";
 import {
   changeStatusSchema,
   createSpecialistSchema,
+  ERROR_CODES,
   listSpecialistsQuerySchema,
   updateSpecialistSchema,
+  uploadKindSchema,
 } from "@orbital/shared";
 import { zodErrorHook } from "../lib/validation.js";
+import { ApiError } from "../middleware/error-handler.js";
 import { requireAuth } from "../middleware/auth.js";
 import { specialistsService } from "../services/specialists.service.js";
 
@@ -70,4 +73,13 @@ export const specialistsRoutes = new Hono()
       );
       return c.json(row);
     },
-  );
+  )
+  .get("/specialists/:id/files/:kind", requireAuth, async (c) => {
+    const { companyId } = c.get("auth");
+    const parsedKind = uploadKindSchema.safeParse(c.req.param("kind"));
+    if (!parsedKind.success) {
+      throw new ApiError(400, ERROR_CODES.VALIDATION, "Недопустимый тип файла");
+    }
+    const url = await specialistsService.getFileUrl(companyId, c.req.param("id")!, parsedKind.data);
+    return c.redirect(url, 302);
+  });

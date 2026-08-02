@@ -5,7 +5,9 @@ import {
   type RequestType,
   type SpecialistStatus,
   type UpdateSpecialistInput,
+  type UploadKind,
 } from "@orbital/shared";
+import { presignDownload } from "../lib/storage/index.js";
 import { ApiError } from "../middleware/error-handler.js";
 import { specialistsRepo } from "../repositories/specialists.repo.js";
 
@@ -139,5 +141,15 @@ export const specialistsService = {
       throw new ApiError(409, ERROR_CODES.CONFLICT, "Статус уже изменился — обновите страницу");
     }
     return toDetailDTO(row);
+  },
+
+  async getFileUrl(companyId: string, id: string, kind: UploadKind) {
+    const row = await specialistsRepo.get(companyId, id);
+    if (!row) throw new ApiError(404, ERROR_CODES.NOT_FOUND, "Специалист не найден");
+
+    const key = kind === "resume" ? row.resumeKey : row.avatarKey;
+    if (!key) throw new ApiError(404, ERROR_CODES.NOT_FOUND, "Файл не загружен");
+
+    return presignDownload(key);
   },
 };

@@ -13,12 +13,14 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@orbital/shared": "workspace:*",
+    "@aws-sdk/client-s3": "^3.1101.0",
+    "@aws-sdk/s3-request-presigner": "^3.1101.0",
+    "@hono/node-server": "^1.13.0",
     "@hono/zod-validator": "^0.4.0",
+    "@orbital/shared": "workspace:*",
     "@prisma/client": "^6.1.0",
     "better-auth": "^1.2.0",
     "hono": "^4.6.0",
-    "@hono/node-server": "^1.13.0",
     "pino": "^9.5.0",
     "pino-pretty": "^13.0.0",
     "zod": "^3.25.0"

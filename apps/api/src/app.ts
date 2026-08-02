@@ -9,6 +9,7 @@ import { healthRoutes } from "./routes/health.routes.js";
 import { meRoutes } from "./routes/me.routes.js";
 import { requestsRoutes } from "./routes/requests.routes.js";
 import { specialistsRoutes } from "./routes/specialists.routes.js";
+import { uploadsRoutes } from "./routes/uploads.routes.js";
 
 export const app = new Hono();
 
@@ -36,3 +37,4 @@ app.route("/api/v1", healthRoutes);
 app.route("/api/v1", meRoutes);
 app.route("/api/v1", requestsRoutes);
 app.route("/api/v1", specialistsRoutes);
+app.route("/api/v1", uploadsRoutes);

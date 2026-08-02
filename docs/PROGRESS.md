@@ -25,7 +25,7 @@
 | T-019 | Специалисты CRUD | done | 2026-08-02 |
 | T-020 | Hiring на реальных данных | done | 2026-08-02 |
 | T-021 | Статусы + таймлайн | done | 2026-08-02 |
-| T-022 | Файлы presigned | todo | |
+| T-022 | Файлы presigned | done | 2026-08-02 |
 | T-023 | Чат API + Messages | todo | |
 | T-024 | SSE | todo | |
 | T-025 | Magic-ссылка | todo | |

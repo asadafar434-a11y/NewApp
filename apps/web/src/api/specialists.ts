@@ -27,6 +27,8 @@ type CreateSpecialistForm = {
   portfolioUrl?: string;
   availability?: string;
   timezone?: string;
+  resumeKey?: string;
+  avatarKey?: string;
 };
 
 type UpdateSpecialistForm = Partial<Omit<CreateSpecialistForm, "requestId">>;

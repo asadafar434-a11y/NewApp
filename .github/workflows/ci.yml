@@ -25,5 +25,16 @@ jobs:
       - run: pnpm -r typecheck
       - run: pnpm lint
       - run: pnpm --filter @orbital/api exec prisma migrate deploy
+      # GH Actions "services:" не даёт переопределить command контейнера, а MinIO без
+      # "server /data" завершается сразу — поднимаем его обычным docker run.
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=orbital -e MINIO_ROOT_PASSWORD=orbital-local \
+            minio/minio server /data
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 1
+          done
       - run: pnpm -r test
       - run: pnpm -r build
