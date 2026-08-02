@@ -3,6 +3,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
+    // Несколько тестовых файлов бьют в одну и ту же orbital_test с truncateAll() в
+    // beforeEach (test/helpers/db.ts) — при параллельных файлах один может стереть данные
+    // другого посреди теста. Файлы идут последовательно; тесты внутри файла — как обычно.
+    fileParallelism: false,
     env: {
       NODE_ENV: "test",
       PORT: "3000",

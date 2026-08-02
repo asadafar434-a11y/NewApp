@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type CSSProperties } from "react";
 import {
   Search,
   Sparkles,
@@ -20,7 +20,12 @@ import {
   ChevronDown,
   Filter,
   SlidersHorizontal,
+  Plus,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
+import type { RequestDTO, RequestType } from "@orbital/shared";
+import { useCreateRequest, useRequests } from "../api/requests";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2031,6 +2036,448 @@ function CallsPanel({
   );
 }
 
+// ─── New Request Modal ────────────────────────────────────────────────────────
+
+function NewRequestModal({ onClose }: { onClose: () => void }) {
+  const [type, setType] = useState<RequestType>("hire");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priceRubles, setPriceRubles] = useState("");
+  const createRequest = useCreateRequest();
+
+  const priceRequired = type === "consult";
+  const priceValid = !priceRequired || (priceRubles.trim() !== "" && Number(priceRubles) > 0);
+  const canSubmit = title.trim().length >= 3 && description.trim().length >= 10 && priceValid;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    await createRequest.mutateAsync({
+      type,
+      title: title.trim(),
+      description: description.trim(),
+      priceRubles: priceRubles.trim() === "" ? null : Number(priceRubles),
+    });
+    onClose();
+  };
+
+  const inputStyle: CSSProperties = {
+    width: "100%",
+    background: "var(--color-bg-elevated)",
+    border: "1px solid var(--color-border-default)",
+    borderRadius: "var(--radius-lg)",
+    padding: "var(--space-3) var(--space-4)",
+    fontFamily: "var(--font-body)",
+    fontSize: "var(--text-sm)",
+    color: "var(--color-text-primary)",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const labelStyle: CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontSize: 11,
+    color: "var(--color-text-muted)",
+    letterSpacing: "var(--tracking-wider)",
+    textTransform: "uppercase",
+    margin: "0 0 var(--space-2) 0",
+    display: "block",
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        background: "rgba(0,0,0,0.7)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backdropFilter: "blur(4px)",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "var(--color-bg-surface)",
+          border: "1px solid var(--color-border-default)",
+          borderRadius: "var(--radius-2xl)",
+          padding: "var(--space-8)",
+          width: 480,
+          maxHeight: "85vh",
+          overflowY: "auto",
+          boxShadow: "var(--shadow-lg)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "var(--space-6)",
+          }}
+        >
+          <h3
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "var(--text-lg)",
+              fontWeight: 800,
+              color: "var(--color-text-primary)",
+              margin: 0,
+              letterSpacing: "var(--tracking-tight)",
+            }}
+          >
+            Новая заявка
+          </h3>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--color-text-muted)",
+              padding: 4,
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ marginBottom: "var(--space-5)" }}>
+          <span style={labelStyle}>Тип</span>
+          <div style={{ display: "flex", gap: "var(--space-2)" }}>
+            {(
+              [
+                { value: "hire", label: "Найм" },
+                { value: "consult", label: "Консультация" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setType(opt.value)}
+                style={{
+                  flex: 1,
+                  fontFamily: "var(--font-body)",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: type === opt.value ? 600 : 400,
+                  color: type === opt.value ? "white" : "var(--color-text-secondary)",
+                  background:
+                    type === opt.value
+                      ? "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))"
+                      : "var(--color-bg-elevated)",
+                  border: `1px solid ${
+                    type === opt.value ? "transparent" : "var(--color-border-default)"
+                  }`,
+                  borderRadius: "var(--radius-lg)",
+                  padding: "var(--space-3)",
+                  cursor: "pointer",
+                  transition: "all var(--duration-fast)",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: "var(--space-5)" }}>
+          <span style={labelStyle}>Название</span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Например, Продуктовый дизайнер"
+            style={inputStyle}
+            onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
+          />
+        </div>
+
+        <div style={{ marginBottom: "var(--space-5)" }}>
+          <span style={labelStyle}>Описание</span>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+            placeholder="Опишите задачу подробнее…"
+            style={{ ...inputStyle, resize: "vertical", lineHeight: "var(--leading-normal)" }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
+          />
+        </div>
+
+        {priceRequired && (
+          <div style={{ marginBottom: "var(--space-5)" }}>
+            <span style={labelStyle}>Цена, ₽</span>
+            <input
+              type="number"
+              min={1}
+              value={priceRubles}
+              onChange={(e) => setPriceRubles(e.target.value)}
+              placeholder="5000"
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = "var(--color-accent-primary)")}
+              onBlur={(e) => (e.target.style.borderColor = "var(--color-border-default)")}
+            />
+          </div>
+        )}
+
+        {createRequest.isError && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-2)",
+              marginBottom: "var(--space-4)",
+              color: "var(--color-accent-danger)",
+            }}
+          >
+            <AlertCircle size={14} />
+            <span style={{ fontFamily: "var(--font-body)", fontSize: "var(--text-xs)" }}>
+              {createRequest.error instanceof Error
+                ? createRequest.error.message
+                : "Не удалось создать заявку"}
+            </span>
+          </div>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          disabled={!canSubmit || createRequest.isPending}
+          style={{
+            width: "100%",
+            fontFamily: "var(--font-body)",
+            fontSize: "var(--text-base)",
+            fontWeight: 600,
+            color: "white",
+            background:
+              canSubmit && !createRequest.isPending
+                ? "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))"
+                : "var(--color-bg-elevated)",
+            border: `1px solid ${
+              canSubmit && !createRequest.isPending ? "transparent" : "var(--color-border-default)"
+            }`,
+            borderRadius: "var(--radius-lg)",
+            padding: "var(--space-4)",
+            cursor: canSubmit && !createRequest.isPending ? "pointer" : "not-allowed",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "var(--space-2)",
+            transition: "all var(--duration-fast)",
+          }}
+        >
+          {createRequest.isPending ? (
+            <Loader2 size={16} className="spin" color="white" />
+          ) : (
+            <Plus size={16} color={canSubmit ? "white" : "var(--color-text-muted)"} />
+          )}
+          <span
+            style={{
+              color: canSubmit || createRequest.isPending ? "white" : "var(--color-text-muted)",
+            }}
+          >
+            Создать заявку
+          </span>
+        </button>
+
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } } .spin { animation: spin 0.8s linear infinite; }`}</style>
+      </div>
+    </div>
+  );
+}
+
+// ─── Request Selector ─────────────────────────────────────────────────────────
+
+const REQUEST_TYPE_LABEL: Record<RequestType, string> = { hire: "Найм", consult: "Консультация" };
+
+function RequestSelector({
+  activeId,
+  onSelect,
+  onNew,
+}: {
+  activeId: string | null;
+  onSelect: (id: string | null) => void;
+  onNew: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading } = useRequests();
+  const items = data?.items ?? [];
+  const active = items.find((r) => r.id === activeId) ?? null;
+
+  return (
+    <div
+      style={{
+        padding: "var(--space-3) var(--space-4)",
+        borderBottom: "1px solid var(--color-border-subtle)",
+        position: "relative",
+      }}
+    >
+      <div style={{ display: "flex", gap: "var(--space-2)" }}>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "var(--space-2)",
+            fontFamily: "var(--font-body)",
+            fontSize: "var(--text-xs)",
+            color: active ? "var(--color-text-primary)" : "var(--color-text-muted)",
+            background: "var(--color-bg-elevated)",
+            border: "1px solid var(--color-border-default)",
+            borderRadius: "var(--radius-lg)",
+            padding: "var(--space-2) var(--space-3)",
+            cursor: "pointer",
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {isLoading
+              ? "Загрузка заявок…"
+              : active
+                ? `${REQUEST_TYPE_LABEL[active.type]}: ${active.title}`
+                : items.length === 0
+                  ? "Заявок пока нет"
+                  : "Все заявки"}
+          </span>
+          <ChevronDown
+            size={13}
+            color="var(--color-text-muted)"
+            style={{
+              flexShrink: 0,
+              transform: open ? "rotate(180deg)" : "none",
+              transition: "transform var(--duration-fast)",
+            }}
+          />
+        </button>
+        <button
+          onClick={onNew}
+          title="Новая заявка"
+          style={{
+            flexShrink: 0,
+            width: 32,
+            height: 32,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background:
+              "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
+            border: "none",
+            borderRadius: "var(--radius-lg)",
+            cursor: "pointer",
+          }}
+        >
+          <Plus size={14} color="white" />
+        </button>
+      </div>
+
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: "var(--space-4)",
+            right: "var(--space-4)",
+            marginTop: 4,
+            background: "var(--color-bg-overlay)",
+            border: "1px solid var(--color-border-default)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-lg)",
+            zIndex: 10,
+            maxHeight: 260,
+            overflowY: "auto",
+          }}
+        >
+          <button
+            onClick={() => {
+              onSelect(null);
+              setOpen(false);
+            }}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              fontFamily: "var(--font-body)",
+              fontSize: "var(--text-xs)",
+              color:
+                activeId === null ? "var(--color-accent-primary)" : "var(--color-text-secondary)",
+              background: "none",
+              border: "none",
+              borderBottom: "1px solid var(--color-border-subtle)",
+              padding: "var(--space-3)",
+              cursor: "pointer",
+            }}
+          >
+            Все заявки
+          </button>
+          {items.length === 0 ? (
+            <p
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-xs)",
+                color: "var(--color-text-muted)",
+                padding: "var(--space-3)",
+                margin: 0,
+              }}
+            >
+              Пока нет ни одной заявки — создайте первую
+            </p>
+          ) : (
+            items.map((r: RequestDTO) => (
+              <button
+                key={r.id}
+                onClick={() => {
+                  onSelect(r.id);
+                  setOpen(false);
+                }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  fontFamily: "var(--font-body)",
+                  fontSize: "var(--text-xs)",
+                  color:
+                    activeId === r.id ? "var(--color-accent-primary)" : "var(--color-text-primary)",
+                  background: "none",
+                  border: "none",
+                  borderBottom: "1px solid var(--color-border-subtle)",
+                  padding: "var(--space-3)",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ fontWeight: 600 }}>{r.title}</span>
+                <span
+                  style={{
+                    color: "var(--color-text-muted)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 10,
+                  }}
+                >
+                  {REQUEST_TYPE_LABEL[r.type]}
+                  {r.priceKopecks != null
+                    ? ` · ${(r.priceKopecks / 100).toLocaleString("ru-RU")} ₽`
+                    : ""}
+                  {" · "}
+                  {r.specialistCount} кандидат.
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Hiring() {
@@ -2055,6 +2502,8 @@ export default function Hiring() {
     },
   ]);
   const [middleTab, setMiddleTab] = useState<"candidates" | "calls">("candidates");
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [showNewRequest, setShowNewRequest] = useState(false);
 
   const handleStatusChange = (id: number, status: Status) => {
     setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
@@ -2214,6 +2663,12 @@ export default function Hiring() {
             scheduledCalls.filter((c) => new Date(`${c.date}T${c.time}`) >= new Date()).length,
           )}
         </div>
+
+        <RequestSelector
+          activeId={activeRequestId}
+          onSelect={setActiveRequestId}
+          onNew={() => setShowNewRequest(true)}
+        />
 
         {middleTab === "candidates" ? (
           <>
@@ -2433,6 +2888,8 @@ export default function Hiring() {
           </div>
         )}
       </div>
+
+      {showNewRequest && <NewRequestModal onClose={() => setShowNewRequest(false)} />}
 
       <style>{`
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }

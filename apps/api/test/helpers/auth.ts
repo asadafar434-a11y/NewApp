@@ -42,7 +42,10 @@ export async function registerAndLogin(options: SignUpOptions = {}) {
     body: JSON.stringify({ email, password }),
   });
   const setCookie = signInRes.headers.get("set-cookie");
-  if (!setCookie) throw new Error("sign-in не вернул Set-Cookie — проверь тестовые данные");
+  if (!setCookie) {
+    const debugBody = await signInRes.text();
+    throw new Error(`sign-in не вернул Set-Cookie: status=${signInRes.status} body=${debugBody}`);
+  }
   const cookie = setCookie.split(";")[0];
 
   const company = await prisma.company.findUniqueOrThrow({ where: { ownerId: userId } });

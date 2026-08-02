@@ -7,6 +7,7 @@ import { logger } from "./lib/logger.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { healthRoutes } from "./routes/health.routes.js";
 import { meRoutes } from "./routes/me.routes.js";
+import { requestsRoutes } from "./routes/requests.routes.js";
 
 export const app = new Hono();
 
@@ -32,3 +33,4 @@ app.notFound(notFoundHandler);
 app.on(["GET", "POST"], "/api/v1/auth/*", (c) => auth.handler(c.req.raw));
 app.route("/api/v1", healthRoutes);
 app.route("/api/v1", meRoutes);
+app.route("/api/v1", requestsRoutes);
