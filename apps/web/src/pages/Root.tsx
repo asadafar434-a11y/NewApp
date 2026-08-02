@@ -15,6 +15,7 @@ import {
   Bell,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useChatEvents } from "../api/chat";
 
 const NAV_ITEMS = [
   { to: "/", icon: LayoutDashboard, label: "Дашборд", exact: true },
@@ -29,6 +30,8 @@ export default function Root() {
   const { user, isPending, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useChatEvents(!!user?.emailVerified);
 
   useEffect(() => {
     if (isPending) return;

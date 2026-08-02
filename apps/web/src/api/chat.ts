@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ConversationListItemDTO, MessageDTO } from "@orbital/shared";
 import { apiFetch } from "./client";
@@ -72,4 +73,38 @@ export function useMarkConversationRead() {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
     },
   });
+}
+
+/**
+ * Открывает EventSource на /events один раз для всего приложения (вызывается из Root —
+ * docs/tasks/T-024). withCredentials — иначе кука сессии не уйдёт с запросом.
+ * Реконнект при обрыве — встроенное поведение EventSource, ничего писать не нужно.
+ */
+export function useChatEvents(enabled: boolean) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const base = import.meta.env.VITE_API_URL || "/api/v1";
+    const source = new EventSource(`${base}/events`, { withCredentials: true });
+
+    const handleEvent = (raw: MessageEvent<string>) => {
+      let conversationId: string | undefined;
+      try {
+        conversationId = (JSON.parse(raw.data) as { conversationId?: string }).conversationId;
+      } catch {
+        conversationId = undefined;
+      }
+      if (conversationId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.messages(conversationId) });
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
+    };
+
+    source.addEventListener("message:new", handleEvent);
+    source.addEventListener("message:status", handleEvent);
+
+    return () => source.close();
+  }, [enabled, queryClient]);
 }

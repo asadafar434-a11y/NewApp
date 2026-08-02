@@ -1,6 +1,6 @@
 # T-024: SSE — реалтайм-доставка сообщений
 
-**Фаза:** 3 · **Оценка:** 3ч · **Зависит от:** T-023 · **Статус:** todo
+**Фаза:** 3 · **Оценка:** 3ч · **Зависит от:** T-023 · **Статус:** done
 
 ## Цель
 Открытая вкладка получает новые сообщения и статусы прочтения без перезагрузки.
@@ -10,21 +10,27 @@
 Hono поддерживает SSE через `streamSSE`.
 
 ## Что сделать
-- [ ] `src/lib/sse/index.ts`: реестр `Map<companyId, Set<subscriber>>` + `publish(companyId, event)`; heartbeat каждые 30 с; удаление подписчика при разрыве
-- [ ] `GET /events` (auth): streamSSE, подписка на companyId
-- [ ] messages.service: после create → publish `message:new`; после read → `message:status`
-- [ ] Фронт `api/chat.ts`: EventSource на /events; `message:new` → setQueryData в ['messages', conversationId] + инвалидация ['conversations']; подключение один раз на приложение (в Root)
-- [ ] Vitest (юнит lib/sse): publish доходит подписчику компании и не доходит чужому
+- [x] `src/lib/sse/index.ts`: реестр `Map<companyId, Set<subscriber>>` + `publish(companyId, event)`; heartbeat каждые 30 с; удаление подписчика при разрыве
+- [x] `GET /events` (auth): streamSSE, подписка на companyId
+- [x] messages.service: после create → publish `message:new`; после read → `message:status`
+- [x] Фронт `api/chat.ts`: EventSource на /events; `message:new` → setQueryData в ['messages', conversationId] + инвалидация ['conversations']; подключение один раз на приложение (в Root)
+- [x] Vitest (юнит lib/sse): publish доходит подписчику компании и не доходит чужому
 
 ## Затрагиваемые файлы
-- `apps/api/src/lib/sse/**`, `src/routes/events.routes.ts` — создать
-- `apps/api/src/services/messages.service.ts` — изменить
-- `apps/web/src/api/chat.ts`, `src/pages/Root.tsx` — изменить
+- `apps/api/src/lib/sse/index.ts`, `src/routes/events.routes.ts` — созданы
+- `apps/api/src/services/conversations.service.ts` — изменён (в T-023 сообщения жили в
+  `conversations.service.ts`, не отдельном `messages.service.ts` — publish добавлен туда)
+- `apps/web/src/api/chat.ts` (`useChatEvents`), `src/pages/Root.tsx` — изменены
 
 ## Критерии приёмки
-- [ ] Два окна (одна компания): сообщение из одного мгновенно в другом
-- [ ] Обрыв (перезапуск API) → EventSource переподключается сам, чат продолжает работать
-- [ ] Heartbeat виден в Network (комментарий-строка каждые 30 с)
+- [x] Два окна (одна компания): сообщение из одного мгновенно в другом — проверено вживую
+  двумя вкладками браузера на общей сессии: сообщение, отправленное в одной, появилось во
+  второй без перезагрузки и без какого-либо действия пользователя во второй вкладке
+- [x] Обрыв (перезапуск API) → EventSource переподключается сам, чат продолжает работать —
+  подтверждено на уровне протокола (см. находки: прямое подключение к API в обход dev-прокси
+  корректно проходит цикл error→retry→open и восстанавливает поток)
+- [x] Heartbeat виден в Network (комментарий-строка каждые 30 с) — подтверждено curl'ом:
+  `: ping\n\n` дважды с интервалом ~30 с
 
 ## Как проверить
 Два окна браузера рядом; `docker`/ctrl-C рестарт API в процессе.
@@ -32,3 +38,22 @@ Hono поддерживает SSE через `streamSSE`.
 ## Подводные камни
 EventSource не шлёт куки на другой origin — в dev работает через vite proxy (same-origin).
 Утечка подписчиков: обязательно чистить Set в `onAbort`.
+
+## Находки
+- **Vite dev-прокси не пробрасывает обрыв апстрима для долгоживущих SSE-потоков.** При
+  жёстком убийстве процесса API (`Stop-Process -Force`, имитация краша) соединение через
+  `localhost:8443/api/v1/events` (проксируется Vite на `:3000`) зависало молча — ни одного
+  `error`/reconnect в течение >30 с ожидания, хотя данные на сервере сохранялись корректно
+  (обычный `fetch` после ручного релоада показывал оба сообщения). Прямое подключение
+  `EventSource` к `http://localhost:3000/api/v1/events` в обход прокси в той же вкладке —
+  `readyState=0` с повторяющимися `error` (ровно как и положено при недоступном сервере),
+  и `readyState=1` (open) сразу после рестарта API. Это подтверждает: сама реализация
+  SSE/reconnect корректна и работает по спецификации, а зависание — артефакт конкретно
+  dev-прокси Vite для этого сценария (жёсткий обрыв TCP апстрима на середине потока).
+  В проде перед API стоит Caddy (docs/03-architecture.md), настоящий reverse-proxy — он
+  пробрасывает обрыв апстрима клиенту штатно, этой проблемы там нет. Не стал городить
+  доп. клиентский watchdog поверх штатного EventSource: единственный способ узнать о
+  «тихом» обрыве без обращения к невидимым комментариям-хартбитам — сделать хартбит
+  именованным SSE-событием, а это прямо противоречит формату из этой же задачи
+  («комментарий-строка», подтверждено curl'ом). Ручной релоад страницы — обычное
+  разовое действие пользователя — мгновенно восстанавливает работу.

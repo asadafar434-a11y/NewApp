@@ -1,4 +1,5 @@
 import { ERROR_CODES, type ListMessagesQuery } from "@orbital/shared";
+import { publish } from "../lib/sse/index.js";
 import { ApiError } from "../middleware/error-handler.js";
 import { conversationsRepo } from "../repositories/conversations.repo.js";
 
@@ -59,7 +60,9 @@ export const conversationsService = {
     if (!conversation) throw new ApiError(404, ERROR_CODES.NOT_FOUND, "Диалог не найден");
 
     const message = await conversationsRepo.createMessage(conversationId, text);
-    return toMessageDTO(message);
+    const dto = toMessageDTO(message);
+    await publish(companyId, "message:new", { conversationId, message: dto });
+    return dto;
   },
 
   async markRead(companyId: string, conversationId: string) {
@@ -67,5 +70,6 @@ export const conversationsService = {
     if (!conversation) throw new ApiError(404, ERROR_CODES.NOT_FOUND, "Диалог не найден");
 
     await conversationsRepo.markRead(conversationId);
+    await publish(companyId, "message:status", { conversationId, status: "read" });
   },
 };
