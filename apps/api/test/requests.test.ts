@@ -1,19 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { truncateAll } from "./helpers/db.js";
 import { registerAndLogin } from "./helpers/auth.js";
-
-const { app } = await import("../src/app.js");
+import { authedRequest } from "./helpers/http.js";
 
 beforeEach(async () => {
   await truncateAll();
 });
-
-function authedRequest(path: string, cookie: string, init: RequestInit = {}) {
-  return app.request(path, {
-    ...init,
-    headers: { "Content-Type": "application/json", Cookie: cookie, ...init.headers },
-  });
-}
 
 describe("POST /api/v1/requests", () => {
   it("создаёт hire-заявку без цены", async () => {

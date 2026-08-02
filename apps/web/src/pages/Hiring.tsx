@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type CSSProperties } from "react";
+import { useState, useRef, useEffect, type CSSProperties, type FocusEvent } from "react";
 import {
   Search,
   Sparkles,
@@ -23,9 +23,12 @@ import {
   Plus,
   Loader2,
   AlertCircle,
+  UserPlus,
+  ChevronUp,
 } from "lucide-react";
 import type { RequestDTO, RequestType } from "@orbital/shared";
 import { useCreateRequest, useRequests } from "../api/requests";
+import { useCreateSpecialist } from "../api/specialists";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2287,6 +2290,333 @@ function NewRequestModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Add Specialist Modal ─────────────────────────────────────────────────────
+
+function AddSpecialistModal({ requestId, onClose }: { requestId: string; onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("");
+  const [email, setEmail] = useState("");
+  const [showMore, setShowMore] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [exp, setExp] = useState("");
+  const [location, setLocation] = useState("");
+  const [salary, setSalary] = useState("");
+  const [source, setSource] = useState("");
+  const [skillsText, setSkillsText] = useState("");
+  const [about, setAbout] = useState("");
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [availability, setAvailability] = useState("");
+  const [timezone, setTimezone] = useState("");
+  const createSpecialist = useCreateSpecialist();
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const canSubmit = name.trim().length >= 2 && role.trim().length >= 2 && emailValid;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    await createSpecialist.mutateAsync({
+      requestId,
+      name: name.trim(),
+      role: role.trim(),
+      email: email.trim(),
+      phone: phone.trim() || undefined,
+      exp: exp.trim() || undefined,
+      location: location.trim() || undefined,
+      salary: salary.trim() || undefined,
+      source: source.trim() || undefined,
+      skillsText,
+      about: about.trim() || undefined,
+      portfolioUrl: portfolioUrl.trim() || undefined,
+      availability: availability.trim() || undefined,
+      timezone: timezone.trim() || undefined,
+    });
+    onClose();
+  };
+
+  const inputStyle: CSSProperties = {
+    width: "100%",
+    background: "var(--color-bg-elevated)",
+    border: "1px solid var(--color-border-default)",
+    borderRadius: "var(--radius-lg)",
+    padding: "var(--space-3) var(--space-4)",
+    fontFamily: "var(--font-body)",
+    fontSize: "var(--text-sm)",
+    color: "var(--color-text-primary)",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const labelStyle: CSSProperties = {
+    fontFamily: "var(--font-mono)",
+    fontSize: 11,
+    color: "var(--color-text-muted)",
+    letterSpacing: "var(--tracking-wider)",
+    textTransform: "uppercase",
+    margin: "0 0 var(--space-2) 0",
+    display: "block",
+  };
+
+  const focusHandlers = {
+    onFocus: (e: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      (e.target.style.borderColor = "var(--color-accent-primary)"),
+    onBlur: (e: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      (e.target.style.borderColor = "var(--color-border-default)"),
+  };
+
+  const Field = ({
+    label,
+    value,
+    onChange,
+    placeholder,
+  }: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    placeholder?: string;
+  }) => (
+    <div style={{ marginBottom: "var(--space-4)" }}>
+      <span style={labelStyle}>{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={inputStyle}
+        {...focusHandlers}
+      />
+    </div>
+  );
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        background: "rgba(0,0,0,0.7)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backdropFilter: "blur(4px)",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "var(--color-bg-surface)",
+          border: "1px solid var(--color-border-default)",
+          borderRadius: "var(--radius-2xl)",
+          padding: "var(--space-8)",
+          width: 480,
+          maxHeight: "85vh",
+          overflowY: "auto",
+          boxShadow: "var(--shadow-lg)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "var(--space-6)",
+          }}
+        >
+          <h3
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "var(--text-lg)",
+              fontWeight: 800,
+              color: "var(--color-text-primary)",
+              margin: 0,
+              letterSpacing: "var(--tracking-tight)",
+            }}
+          >
+            Добавить специалиста
+          </h3>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--color-text-muted)",
+              padding: 4,
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <Field label="Имя" value={name} onChange={setName} placeholder="Анна Ковалёва" />
+        <Field label="Роль" value={role} onChange={setRole} placeholder="Senior UX Designer" />
+
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <span style={labelStyle}>Email</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="anna@example.com"
+            style={{
+              ...inputStyle,
+              borderColor:
+                email.length > 0 && !emailValid
+                  ? "var(--color-accent-danger)"
+                  : "var(--color-border-default)",
+            }}
+            {...focusHandlers}
+          />
+          {email.length > 0 && !emailValid && (
+            <span
+              style={{
+                display: "block",
+                marginTop: 4,
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-xs)",
+                color: "var(--color-accent-danger)",
+              }}
+            >
+              Введите корректный email
+            </span>
+          )}
+        </div>
+
+        <button
+          onClick={() => setShowMore((v) => !v)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--space-2)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--color-text-secondary)",
+            fontFamily: "var(--font-body)",
+            fontSize: "var(--text-sm)",
+            padding: 0,
+            marginBottom: "var(--space-4)",
+          }}
+        >
+          {showMore ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          Дополнительно
+        </button>
+
+        {showMore && (
+          <div>
+            <Field
+              label="Телефон"
+              value={phone}
+              onChange={setPhone}
+              placeholder="+7 900 000-00-00"
+            />
+            <Field label="Опыт" value={exp} onChange={setExp} placeholder="6 лет" />
+            <Field label="Локация" value={location} onChange={setLocation} placeholder="Москва" />
+            <Field label="Зарплата" value={salary} onChange={setSalary} placeholder="180 000 ₽" />
+            <Field label="Источник" value={source} onChange={setSource} placeholder="LinkedIn" />
+            <Field
+              label="Навыки (через запятую)"
+              value={skillsText}
+              onChange={setSkillsText}
+              placeholder="Figma, User Research, Prototyping"
+            />
+            <div style={{ marginBottom: "var(--space-4)" }}>
+              <span style={labelStyle}>О себе</span>
+              <textarea
+                value={about}
+                onChange={(e) => setAbout(e.target.value)}
+                rows={3}
+                style={{ ...inputStyle, resize: "vertical", lineHeight: "var(--leading-normal)" }}
+                {...focusHandlers}
+              />
+            </div>
+            <Field
+              label="Портфолио (URL)"
+              value={portfolioUrl}
+              onChange={setPortfolioUrl}
+              placeholder="https://…"
+            />
+            <Field
+              label="Доступность"
+              value={availability}
+              onChange={setAvailability}
+              placeholder="Через 2 недели"
+            />
+            <Field
+              label="Часовой пояс"
+              value={timezone}
+              onChange={setTimezone}
+              placeholder="UTC+3"
+            />
+          </div>
+        )}
+
+        {createSpecialist.isError && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-2)",
+              marginBottom: "var(--space-4)",
+              color: "var(--color-accent-danger)",
+            }}
+          >
+            <AlertCircle size={14} />
+            <span style={{ fontFamily: "var(--font-body)", fontSize: "var(--text-xs)" }}>
+              {createSpecialist.error instanceof Error
+                ? createSpecialist.error.message
+                : "Не удалось добавить специалиста"}
+            </span>
+          </div>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          disabled={!canSubmit || createSpecialist.isPending}
+          style={{
+            width: "100%",
+            fontFamily: "var(--font-body)",
+            fontSize: "var(--text-base)",
+            fontWeight: 600,
+            color: "white",
+            background:
+              canSubmit && !createSpecialist.isPending
+                ? "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))"
+                : "var(--color-bg-elevated)",
+            border: `1px solid ${
+              canSubmit && !createSpecialist.isPending
+                ? "transparent"
+                : "var(--color-border-default)"
+            }`,
+            borderRadius: "var(--radius-lg)",
+            padding: "var(--space-4)",
+            cursor: canSubmit && !createSpecialist.isPending ? "pointer" : "not-allowed",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "var(--space-2)",
+            transition: "all var(--duration-fast)",
+          }}
+        >
+          {createSpecialist.isPending ? (
+            <Loader2 size={16} className="spin" color="white" />
+          ) : (
+            <UserPlus size={16} color={canSubmit ? "white" : "var(--color-text-muted)"} />
+          )}
+          <span
+            style={{
+              color: canSubmit || createSpecialist.isPending ? "white" : "var(--color-text-muted)",
+            }}
+          >
+            Добавить специалиста
+          </span>
+        </button>
+
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } } .spin { animation: spin 0.8s linear infinite; }`}</style>
+      </div>
+    </div>
+  );
+}
+
 // ─── Request Selector ─────────────────────────────────────────────────────────
 
 const REQUEST_TYPE_LABEL: Record<RequestType, string> = { hire: "Найм", consult: "Консультация" };
@@ -2504,6 +2834,7 @@ export default function Hiring() {
   const [middleTab, setMiddleTab] = useState<"candidates" | "calls">("candidates");
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [showNewRequest, setShowNewRequest] = useState(false);
+  const [showAddSpecialist, setShowAddSpecialist] = useState(false);
 
   const handleStatusChange = (id: number, status: Status) => {
     setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
@@ -2669,6 +3000,40 @@ export default function Hiring() {
           onSelect={setActiveRequestId}
           onNew={() => setShowNewRequest(true)}
         />
+
+        {middleTab === "candidates" && (
+          <div style={{ padding: "var(--space-3) var(--space-4) 0" }}>
+            <button
+              onClick={() => setShowAddSpecialist(true)}
+              disabled={!activeRequestId}
+              title={activeRequestId ? undefined : "Сначала выберите заявку"}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "var(--space-2)",
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-xs)",
+                fontWeight: 600,
+                color: activeRequestId ? "var(--color-accent-primary)" : "var(--color-text-muted)",
+                background: activeRequestId
+                  ? "var(--color-accent-glow)"
+                  : "var(--color-bg-elevated)",
+                border: `1px solid ${
+                  activeRequestId ? "rgba(91,110,245,0.3)" : "var(--color-border-default)"
+                }`,
+                borderRadius: "var(--radius-lg)",
+                padding: "var(--space-2) var(--space-3)",
+                cursor: activeRequestId ? "pointer" : "not-allowed",
+                transition: "all var(--duration-fast)",
+              }}
+            >
+              <UserPlus size={13} />
+              Добавить специалиста
+            </button>
+          </div>
+        )}
 
         {middleTab === "candidates" ? (
           <>
@@ -2890,6 +3255,12 @@ export default function Hiring() {
       </div>
 
       {showNewRequest && <NewRequestModal onClose={() => setShowNewRequest(false)} />}
+      {showAddSpecialist && activeRequestId && (
+        <AddSpecialistModal
+          requestId={activeRequestId}
+          onClose={() => setShowAddSpecialist(false)}
+        />
+      )}
 
       <style>{`
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
