@@ -9,255 +9,19 @@ import {
   Smile,
   Check,
   CheckCheck,
-  Circle,
   Users,
-  Star,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type MsgStatus = "sent" | "delivered" | "read";
-
-type ChatMessage = {
-  id: string;
-  from: "me" | "them";
-  text: string;
-  time: string;
-  status?: MsgStatus;
-};
-
-type Conversation = {
-  id: string;
-  name: string;
-  role: string;
-  avatar: string;
-  avatarColor: string;
-  lastMessage: string;
-  lastTime: string;
-  unread: number;
-  online: boolean;
-  source: string;
-  messages: ChatMessage[];
-};
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
-const INITIAL_CONVERSATIONS: Conversation[] = [
-  {
-    id: "anna",
-    name: "Анна Ковалёва",
-    role: "Senior UX Designer",
-    avatar: "А",
-    avatarColor: "linear-gradient(135deg, #5b6ef5, #7c3aed)",
-    lastMessage: "Буду рада пообщаться! Напишите, когда удобно.",
-    lastTime: "10:24",
-    unread: 2,
-    online: true,
-    source: "LinkedIn",
-    messages: [
-      {
-        id: "1",
-        from: "me",
-        text: "Привет, Анна! Меня зовут Алексей, я основатель Orbital. Видел ваше портфолио — очень впечатлило. У нас открыта позиция Senior UX Designer.",
-        time: "09:15",
-        status: "read",
-      },
-      {
-        id: "2",
-        from: "them",
-        text: "Добрый день, Алексей! Спасибо за интерес. Расскажите подробнее о проекте?",
-        time: "09:48",
-      },
-      {
-        id: "3",
-        from: "me",
-        text: "Orbital — это AI-платформа для бизнеса. Мы ищем дизайнера, который выстроит UX с нуля: исследования, дизайн-система, продуктовая работа.",
-        time: "09:52",
-        status: "read",
-      },
-      {
-        id: "4",
-        from: "them",
-        text: "Звучит интересно! Какой стек и какие ожидания по процессу?",
-        time: "10:01",
-      },
-      {
-        id: "5",
-        from: "me",
-        text: "Figma, тесное взаимодействие с разработкой. Процесс гибкий, без бюрократии. Готов рассказать детальнее на созвоне — удобно на этой неделе?",
-        time: "10:18",
-        status: "read",
-      },
-      {
-        id: "6",
-        from: "them",
-        text: "Буду рада пообщаться! Напишите, когда удобно.",
-        time: "10:24",
-      },
-    ],
-  },
-  {
-    id: "dmitry",
-    name: "Дмитрий Орлов",
-    role: "Product Designer",
-    avatar: "Д",
-    avatarColor: "linear-gradient(135deg, #10b981, #059669)",
-    lastMessage: "Хорошо, жду приглашение на встречу.",
-    lastTime: "Вчера",
-    unread: 0,
-    online: true,
-    source: "Behance",
-    messages: [
-      {
-        id: "1",
-        from: "me",
-        text: "Дмитрий, добрый день! Ваше Behance-портфолио — именно то, что мы ищем. Есть открытая позиция Product Designer.",
-        time: "Вчера 14:30",
-        status: "read",
-      },
-      {
-        id: "2",
-        from: "them",
-        text: "Добрый! Интересно. Что за продукт?",
-        time: "Вчера 15:02",
-      },
-      {
-        id: "3",
-        from: "me",
-        text: "AI-сервис для автоматизации бизнес-процессов. B2B, enterprise-уровень. Команда небольшая, но амбиции большие.",
-        time: "Вчера 15:10",
-        status: "read",
-      },
-      {
-        id: "4",
-        from: "them",
-        text: "Хорошо, жду приглашение на встречу.",
-        time: "Вчера 15:45",
-      },
-    ],
-  },
-  {
-    id: "maria",
-    name: "Мария Смирнова",
-    role: "UX/UI Designer",
-    avatar: "М",
-    avatarColor: "linear-gradient(135deg, #f59e0b, #d97706)",
-    lastMessage: "Ок, в пятницу в 11:00 МСК — договорились!",
-    lastTime: "2 дня назад",
-    unread: 0,
-    online: false,
-    source: "HH.ru",
-    messages: [
-      {
-        id: "1",
-        from: "me",
-        text: "Мария, привет! Нашёл ваше резюме на HH.ru. Очень интересный опыт — работа на стыке дизайна и разработки это именно то, что нам нужно.",
-        time: "3 дня назад",
-        status: "read",
-      },
-      {
-        id: "2",
-        from: "them",
-        text: "Привет! Да, я обожаю работать с разработчиками напрямую. Расскажите о вашей команде?",
-        time: "3 дня назад",
-      },
-      {
-        id: "3",
-        from: "me",
-        text: "Команда 8 человек, 3 разработчика. Процесс: двухнедельные спринты, тесная синхронизация. Готовы к созвону на 30 минут?",
-        time: "3 дня назад",
-        status: "read",
-      },
-      {
-        id: "4",
-        from: "them",
-        text: "Конечно! Мне удобно в пятницу — с 10 до 13 МСК.",
-        time: "2 дня назад",
-      },
-      {
-        id: "5",
-        from: "me",
-        text: "Отлично, тогда в пятницу в 11:00 МСК. Пришлю ссылку на встречу.",
-        time: "2 дня назад",
-        status: "read",
-      },
-      {
-        id: "6",
-        from: "them",
-        text: "Ок, в пятницу в 11:00 МСК — договорились!",
-        time: "2 дня назад",
-      },
-    ],
-  },
-  {
-    id: "ekaterina",
-    name: "Екатерина Белова",
-    role: "Senior Product Designer",
-    avatar: "Е",
-    avatarColor: "linear-gradient(135deg, #ec4899, #be185d)",
-    lastMessage: "Посмотрю вашу вакансию подробнее и вернусь с ответом.",
-    lastTime: "3 дня назад",
-    unread: 1,
-    online: false,
-    source: "Dribbble",
-    messages: [
-      {
-        id: "1",
-        from: "me",
-        text: "Екатерина, добрый день! Нашёл вас на Dribbble — работы впечатляют. Хотел бы обсудить возможность сотрудничества.",
-        time: "3 дня назад",
-        status: "read",
-      },
-      {
-        id: "2",
-        from: "them",
-        text: "Добрый день! Расскажите немного о компании и позиции?",
-        time: "3 дня назад",
-      },
-      {
-        id: "3",
-        from: "me",
-        text: "Orbital — AI Business OS. Ищем Lead Designer, который выстроит дизайн-процесс и команду. Рост — от специалиста к руководителю дизайна.",
-        time: "3 дня назад",
-        status: "read",
-      },
-      {
-        id: "4",
-        from: "them",
-        text: "Посмотрю вашу вакансию подробнее и вернусь с ответом.",
-        time: "3 дня назад",
-      },
-    ],
-  },
-  {
-    id: "artem",
-    name: "Артём Новиков",
-    role: "Visual Designer",
-    avatar: "А",
-    avatarColor: "linear-gradient(135deg, #6366f1, #4f46e5)",
-    lastMessage: "Спасибо за интерес, но сейчас не готов рассматривать предложения.",
-    lastTime: "5 дней назад",
-    unread: 0,
-    online: false,
-    source: "LinkedIn",
-    messages: [
-      {
-        id: "1",
-        from: "me",
-        text: "Артём, привет! Ваш опыт в брендинге и айдентике — то, что нам нужно для нескольких проектов.",
-        time: "5 дней назад",
-        status: "read",
-      },
-      {
-        id: "2",
-        from: "them",
-        text: "Спасибо за интерес, но сейчас не готов рассматривать предложения.",
-        time: "5 дней назад",
-      },
-    ],
-  },
-];
+import type { ConversationListItemDTO, MessageDTO } from "@orbital/shared";
+import {
+  useConversations,
+  useMarkConversationRead,
+  useMessages,
+  useSendMessage,
+} from "../api/chat";
+import { specialistFileUrl } from "../api/uploads";
 
 const QUICK_REPLIES = [
   "Когда вам удобно созвониться?",
@@ -266,13 +30,85 @@ const QUICK_REPLIES = [
   "Готов ответить на все вопросы о позиции.",
 ];
 
+// ─── Time formatting ───────────────────────────────────────────────────────────
+
+function formatConversationTime(iso: string) {
+  const date = new Date(iso);
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  }
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return "Вчера";
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+
+function formatMessageTime(iso: string) {
+  const date = new Date(iso);
+  const now = new Date();
+  const time = date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  if (date.toDateString() === now.toDateString()) return time;
+  return `${date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}, ${time}`;
+}
+
 // ─── Status icon ──────────────────────────────────────────────────────────────
 
-function MsgStatusIcon({ status }: { status?: MsgStatus }) {
-  if (!status) return null;
+function MsgStatusIcon({ status }: { status: MessageDTO["status"] }) {
   if (status === "sent") return <Check size={12} color="var(--color-text-muted)" />;
   if (status === "delivered") return <CheckCheck size={12} color="var(--color-text-muted)" />;
   return <CheckCheck size={12} color="var(--color-accent-primary)" />;
+}
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+
+function Avatar({
+  specialistId,
+  avatarKey,
+  name,
+  size,
+}: {
+  specialistId: string;
+  avatarKey: string | null;
+  name: string;
+  size: number;
+}) {
+  if (avatarKey) {
+    return (
+      <img
+        src={specialistFileUrl(specialistId, "avatar")}
+        alt={name}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "var(--radius-full)",
+          objectFit: "cover",
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "var(--radius-full)",
+        background:
+          "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "var(--font-display)",
+        fontSize: size >= 36 ? "var(--text-base)" : 11,
+        fontWeight: 800,
+        color: "white",
+        flexShrink: 0,
+      }}
+    >
+      {name[0]}
+    </div>
+  );
 }
 
 // ─── Conversation Row ─────────────────────────────────────────────────────────
@@ -282,7 +118,7 @@ function ConversationRow({
   active,
   onClick,
 }: {
-  conv: Conversation;
+  conv: ConversationListItemDTO;
   active: boolean;
   onClick: () => void;
 }) {
@@ -310,40 +146,12 @@ function ConversationRow({
         if (!active) e.currentTarget.style.background = "transparent";
       }}
     >
-      {/* Avatar */}
-      <div style={{ position: "relative", flexShrink: 0 }}>
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: "var(--radius-full)",
-            background: conv.avatarColor,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--text-base)",
-            fontWeight: 800,
-            color: "white",
-          }}
-        >
-          {conv.avatar}
-        </div>
-        {conv.online && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 1,
-              right: 1,
-              width: 9,
-              height: 9,
-              borderRadius: "50%",
-              background: "var(--color-accent-success)",
-              border: "2px solid var(--color-bg-base)",
-            }}
-          />
-        )}
-      </div>
+      <Avatar
+        specialistId={conv.specialistId}
+        avatarKey={conv.avatarKey}
+        name={conv.specialistName}
+        size={40}
+      />
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -358,7 +166,7 @@ function ConversationRow({
             style={{
               fontFamily: "var(--font-body)",
               fontSize: "var(--text-sm)",
-              fontWeight: conv.unread > 0 ? 700 : 500,
+              fontWeight: conv.unreadCount > 0 ? 700 : 500,
               color: "var(--color-text-primary)",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -367,18 +175,19 @@ function ConversationRow({
               marginRight: 8,
             }}
           >
-            {conv.name}
+            {conv.specialistName}
           </span>
           <span
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 10,
-              color: conv.unread > 0 ? "var(--color-accent-primary)" : "var(--color-text-muted)",
+              color:
+                conv.unreadCount > 0 ? "var(--color-accent-primary)" : "var(--color-text-muted)",
               flexShrink: 0,
-              fontWeight: conv.unread > 0 ? 600 : 400,
+              fontWeight: conv.unreadCount > 0 ? 600 : 400,
             }}
           >
-            {conv.lastTime}
+            {conv.lastMessage ? formatConversationTime(conv.lastMessage.createdAt) : ""}
           </span>
         </div>
         <p
@@ -392,7 +201,7 @@ function ConversationRow({
             whiteSpace: "nowrap",
           }}
         >
-          {conv.role}
+          {conv.specialistRole}
         </p>
         <div
           style={{
@@ -405,8 +214,9 @@ function ConversationRow({
             style={{
               fontFamily: "var(--font-body)",
               fontSize: "var(--text-xs)",
-              color: conv.unread > 0 ? "var(--color-text-secondary)" : "var(--color-text-muted)",
-              fontWeight: conv.unread > 0 ? 500 : 400,
+              color:
+                conv.unreadCount > 0 ? "var(--color-text-secondary)" : "var(--color-text-muted)",
+              fontWeight: conv.unreadCount > 0 ? 500 : 400,
               margin: 0,
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -415,9 +225,9 @@ function ConversationRow({
               marginRight: 8,
             }}
           >
-            {conv.lastMessage}
+            {conv.lastMessage?.text ?? "Нет сообщений"}
           </p>
-          {conv.unread > 0 && (
+          {conv.unreadCount > 0 && (
             <div
               style={{
                 background: "var(--color-accent-primary)",
@@ -435,7 +245,7 @@ function ConversationRow({
                 flexShrink: 0,
               }}
             >
-              {conv.unread}
+              {conv.unreadCount}
             </div>
           )}
         </div>
@@ -446,25 +256,24 @@ function ConversationRow({
 
 // ─── Chat Thread ──────────────────────────────────────────────────────────────
 
-function ChatThread({
-  conv,
-  onSend,
-}: {
-  conv: Conversation;
-  onSend: (convId: string, text: string) => void;
-}) {
+function ChatThread({ conv }: { conv: ConversationListItemDTO }) {
   const { user } = useAuth();
   const [input, setInput] = useState("");
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesQuery = useMessages(conv.id);
+  const sendMessage = useSendMessage(conv.id);
+
+  // Сервер отдаёт от новых к старым — для треда переворачиваем в хронологический порядок.
+  const messages = [...(messagesQuery.data?.items ?? [])].reverse();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conv.messages]);
+  }, [messages.length]);
 
   const handleSend = (text: string) => {
     if (!text.trim()) return;
-    onSend(conv.id, text);
+    sendMessage.mutate(text.trim());
     setInput("");
     setShowQuickReplies(false);
   };
@@ -490,39 +299,12 @@ function ChatThread({
             gap: "var(--space-3)",
           }}
         >
-          <div style={{ position: "relative" }}>
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: "var(--radius-full)",
-                background: conv.avatarColor,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: "var(--font-display)",
-                fontSize: "var(--text-base)",
-                fontWeight: 800,
-                color: "white",
-              }}
-            >
-              {conv.avatar}
-            </div>
-            {conv.online && (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 1,
-                  right: 1,
-                  width: 9,
-                  height: 9,
-                  borderRadius: "50%",
-                  background: "var(--color-accent-success)",
-                  border: "2px solid var(--color-bg-surface)",
-                }}
-              />
-            )}
-          </div>
+          <Avatar
+            specialistId={conv.specialistId}
+            avatarKey={conv.avatarKey}
+            name={conv.specialistName}
+            size={40}
+          />
           <div>
             <p
               style={{
@@ -533,17 +315,17 @@ function ChatThread({
                 margin: 0,
               }}
             >
-              {conv.name}
+              {conv.specialistName}
             </p>
             <p
               style={{
                 fontFamily: "var(--font-body)",
                 fontSize: "var(--text-xs)",
-                color: conv.online ? "var(--color-accent-success)" : "var(--color-text-muted)",
+                color: "var(--color-text-muted)",
                 margin: 0,
               }}
             >
-              {conv.online ? "В сети" : "Был(а) недавно"} · {conv.role}
+              {conv.specialistRole}
             </p>
           </div>
         </div>
@@ -621,127 +403,171 @@ function ChatThread({
           gap: "var(--space-3)",
         }}
       >
-        {conv.messages.map((msg, i) => {
-          const isMe = msg.from === "me";
-          const prevMsg = conv.messages[i - 1];
-          const showTime = !prevMsg || prevMsg.time !== msg.time;
+        {messagesQuery.isLoading ? (
+          <p
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: "var(--text-sm)",
+              color: "var(--color-text-muted)",
+              textAlign: "center",
+            }}
+          >
+            Загрузка…
+          </p>
+        ) : messagesQuery.isError ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "var(--space-3)",
+              margin: "auto",
+            }}
+          >
+            <AlertCircle size={20} color="var(--color-accent-danger)" />
+            <p
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-secondary)",
+                margin: 0,
+              }}
+            >
+              Не удалось загрузить сообщения
+            </p>
+            <button
+              onClick={() => messagesQuery.refetch()}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-2)",
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-xs)",
+                fontWeight: 600,
+                color: "var(--color-accent-primary)",
+                background: "var(--color-accent-glow)",
+                border: "1px solid rgba(91,110,245,0.3)",
+                borderRadius: "var(--radius-md)",
+                padding: "var(--space-2) var(--space-3)",
+                cursor: "pointer",
+              }}
+            >
+              <RefreshCw size={12} />
+              Повторить
+            </button>
+          </div>
+        ) : (
+          messages.map((msg, i) => {
+            const isMe = msg.sender === "owner";
+            const prevMsg = messages[i - 1];
+            const showTime =
+              !prevMsg || formatMessageTime(prevMsg.createdAt) !== formatMessageTime(msg.createdAt);
 
-          return (
-            <div key={msg.id}>
-              {showTime && (
-                <div
-                  style={{
-                    textAlign: "center",
-                    margin: "var(--space-3) 0 var(--space-2)",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 10,
-                      color: "var(--color-text-muted)",
-                      background: "var(--color-bg-elevated)",
-                      padding: "2px 10px",
-                      borderRadius: "var(--radius-full)",
-                    }}
-                  >
-                    {msg.time}
-                  </span>
-                </div>
-              )}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: isMe ? "flex-end" : "flex-start",
-                  gap: "var(--space-2)",
-                  alignItems: "flex-end",
-                  animation: "slideUp 0.25s var(--ease-out)",
-                }}
-              >
-                {!isMe && (
+            return (
+              <div key={msg.id}>
+                {showTime && (
                   <div
                     style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "var(--radius-full)",
-                      background: conv.avatarColor,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontFamily: "var(--font-display)",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      color: "white",
-                      flexShrink: 0,
+                      textAlign: "center",
+                      margin: "var(--space-3) 0 var(--space-2)",
                     }}
                   >
-                    {conv.avatar}
-                  </div>
-                )}
-                <div style={{ maxWidth: "68%" }}>
-                  <div
-                    style={{
-                      padding: "var(--space-3) var(--space-4)",
-                      borderRadius: isMe
-                        ? "var(--radius-xl) var(--radius-sm) var(--radius-xl) var(--radius-xl)"
-                        : "var(--radius-sm) var(--radius-xl) var(--radius-xl) var(--radius-xl)",
-                      background: isMe
-                        ? "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))"
-                        : "var(--color-bg-elevated)",
-                      border: isMe ? "none" : "1px solid var(--color-border-subtle)",
-                    }}
-                  >
-                    <p
+                    <span
                       style={{
-                        fontFamily: "var(--font-body)",
-                        fontSize: "var(--text-sm)",
-                        color: isMe ? "white" : "var(--color-text-primary)",
-                        margin: 0,
-                        lineHeight: "var(--leading-normal)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 10,
+                        color: "var(--color-text-muted)",
+                        background: "var(--color-bg-elevated)",
+                        padding: "2px 10px",
+                        borderRadius: "var(--radius-full)",
                       }}
                     >
-                      {msg.text}
-                    </p>
+                      {formatMessageTime(msg.createdAt)}
+                    </span>
+                  </div>
+                )}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: isMe ? "flex-end" : "flex-start",
+                    gap: "var(--space-2)",
+                    alignItems: "flex-end",
+                    animation: "slideUp 0.25s var(--ease-out)",
+                  }}
+                >
+                  {!isMe && (
+                    <Avatar
+                      specialistId={conv.specialistId}
+                      avatarKey={conv.avatarKey}
+                      name={conv.specialistName}
+                      size={28}
+                    />
+                  )}
+                  <div style={{ maxWidth: "68%" }}>
+                    <div
+                      style={{
+                        padding: "var(--space-3) var(--space-4)",
+                        borderRadius: isMe
+                          ? "var(--radius-xl) var(--radius-sm) var(--radius-xl) var(--radius-xl)"
+                          : "var(--radius-sm) var(--radius-xl) var(--radius-xl) var(--radius-xl)",
+                        background: isMe
+                          ? "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))"
+                          : "var(--color-bg-elevated)",
+                        border: isMe ? "none" : "1px solid var(--color-border-subtle)",
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontFamily: "var(--font-body)",
+                          fontSize: "var(--text-sm)",
+                          color: isMe ? "white" : "var(--color-text-primary)",
+                          margin: 0,
+                          lineHeight: "var(--leading-normal)",
+                        }}
+                      >
+                        {msg.text}
+                      </p>
+                    </div>
+                    {isMe && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "flex-end",
+                          alignItems: "center",
+                          gap: 3,
+                          marginTop: 3,
+                        }}
+                      >
+                        <MsgStatusIcon status={msg.status} />
+                      </div>
+                    )}
                   </div>
                   {isMe && (
                     <div
                       style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: "var(--radius-full)",
+                        background:
+                          "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
                         display: "flex",
-                        justifyContent: "flex-end",
                         alignItems: "center",
-                        gap: 3,
-                        marginTop: 3,
+                        justifyContent: "center",
+                        fontFamily: "var(--font-display)",
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color: "white",
+                        flexShrink: 0,
                       }}
                     >
-                      <MsgStatusIcon status={msg.status} />
+                      {user?.avatar ?? "Я"}
                     </div>
                   )}
                 </div>
-                {isMe && (
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "var(--radius-full)",
-                      background:
-                        "linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary))",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontFamily: "var(--font-display)",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      color: "white",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {user?.avatar ?? "Я"}
-                  </div>
-                )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -918,7 +744,7 @@ function ChatThread({
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 
-function EmptyState() {
+function EmptyState({ text }: { text: string }) {
   return (
     <div
       style={{
@@ -968,7 +794,7 @@ function EmptyState() {
           lineHeight: "var(--leading-normal)",
         }}
       >
-        Выберите переписку из списка слева, чтобы начать общение
+        {text}
       </p>
     </div>
   );
@@ -977,84 +803,26 @@ function EmptyState() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Messages() {
-  const [conversations, setConversations] = useState<Conversation[]>(INITIAL_CONVERSATIONS);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const conversationsQuery = useConversations();
+  const markRead = useMarkConversationRead();
 
+  const conversations = conversationsQuery.data?.items ?? [];
   const activeConv = conversations.find((c) => c.id === activeId) ?? null;
 
   const handleSelect = (id: string) => {
     setActiveId(id);
-    // Mark as read
-    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
-  };
-
-  const handleSend = (convId: string, text: string) => {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString("ru-RU", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    const newMsg: ChatMessage = {
-      id: `${Date.now()}`,
-      from: "me",
-      text,
-      time: timeStr,
-      status: "sent",
-    };
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === convId
-          ? {
-              ...c,
-              messages: [...c.messages, newMsg],
-              lastMessage: text,
-              lastTime: timeStr,
-            }
-          : c,
-      ),
-    );
-
-    // Simulate "delivered" after 600ms
-    setTimeout(() => {
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === convId
-            ? {
-                ...c,
-                messages: c.messages.map((m) =>
-                  m.id === newMsg.id ? { ...m, status: "delivered" as MsgStatus } : m,
-                ),
-              }
-            : c,
-        ),
-      );
-    }, 600);
-
-    // Simulate "read" + auto-reply after 2s
-    setTimeout(() => {
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === convId
-            ? {
-                ...c,
-                messages: c.messages.map((m) =>
-                  m.id === newMsg.id ? { ...m, status: "read" as MsgStatus } : m,
-                ),
-              }
-            : c,
-        ),
-      );
-    }, 1500);
+    markRead.mutate(id);
   };
 
   const filtered = conversations.filter(
     (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.role.toLowerCase().includes(search.toLowerCase()),
+      c.specialistName.toLowerCase().includes(search.toLowerCase()) ||
+      c.specialistRole.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const totalUnread = conversations.reduce((s, c) => s + c.unread, 0);
+  const totalUnread = conversations.reduce((s, c) => s + c.unreadCount, 0);
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -1172,7 +940,7 @@ export default function Messages() {
 
         {/* Conversations */}
         <div style={{ flex: 1, overflowY: "auto" }}>
-          {filtered.length === 0 ? (
+          {conversationsQuery.isLoading ? (
             <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
               <p
                 style={{
@@ -1181,7 +949,64 @@ export default function Messages() {
                   color: "var(--color-text-muted)",
                 }}
               >
-                Диалоги не найдены
+                Загрузка…
+              </p>
+            </div>
+          ) : conversationsQuery.isError ? (
+            <div
+              style={{
+                padding: "var(--space-8)",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "var(--space-3)",
+              }}
+            >
+              <AlertCircle size={20} color="var(--color-accent-danger)" />
+              <p
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-text-secondary)",
+                  margin: 0,
+                }}
+              >
+                Не удалось загрузить диалоги
+              </p>
+              <button
+                onClick={() => conversationsQuery.refetch()}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-2)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: "var(--text-xs)",
+                  fontWeight: 600,
+                  color: "var(--color-accent-primary)",
+                  background: "var(--color-accent-glow)",
+                  border: "1px solid rgba(91,110,245,0.3)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "var(--space-2) var(--space-3)",
+                  cursor: "pointer",
+                }}
+              >
+                <RefreshCw size={12} />
+                Повторить
+              </button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
+              <p
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                {conversations.length === 0
+                  ? "Диалогов пока нет — добавьте специалиста в Найме"
+                  : "Диалоги не найдены"}
               </p>
             </div>
           ) : (
@@ -1226,7 +1051,11 @@ export default function Messages() {
           background: "var(--color-bg-base)",
         }}
       >
-        {activeConv ? <ChatThread conv={activeConv} onSend={handleSend} /> : <EmptyState />}
+        {activeConv ? (
+          <ChatThread key={activeConv.id} conv={activeConv} />
+        ) : (
+          <EmptyState text="Выберите переписку из списка слева, чтобы начать общение" />
+        )}
       </div>
 
       <style>{`
