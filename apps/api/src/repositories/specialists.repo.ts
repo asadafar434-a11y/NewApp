@@ -62,6 +62,32 @@ export const specialistsRepo = {
     });
   },
 
+  getStatusContext(companyId: string, id: string) {
+    return prisma.specialist.findFirst({
+      where: { id, companyId, deletedAt: null },
+      select: { id: true, status: true, request: { select: { type: true } } },
+    });
+  },
+
+  /** fromStatus в where — оптимистичная блокировка: если статус успел уйти дальше между
+   * проверкой в сервисе и этим вызовом, updateMany затронет 0 строк вместо рассинхрона с логом. */
+  async changeStatus(
+    companyId: string,
+    id: string,
+    fromStatus: SpecialistStatus,
+    toStatus: SpecialistStatus,
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const { count } = await tx.specialist.updateMany({
+        where: { id, companyId, deletedAt: null, status: fromStatus },
+        data: { status: toStatus },
+      });
+      if (count === 0) return null;
+      await tx.statusChange.create({ data: { specialistId: id, fromStatus, toStatus } });
+      return tx.specialist.findUniqueOrThrow({ where: { id }, include: detailInclude });
+    });
+  },
+
   async create(companyId: string, data: CreateSpecialistInput) {
     const { requestId, ...rest } = data;
     return prisma.$transaction(async (tx) => {

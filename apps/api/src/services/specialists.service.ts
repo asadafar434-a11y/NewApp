@@ -2,10 +2,42 @@ import {
   ERROR_CODES,
   type CreateSpecialistInput,
   type ListSpecialistsQuery,
+  type RequestType,
+  type SpecialistStatus,
   type UpdateSpecialistInput,
 } from "@orbital/shared";
 import { ApiError } from "../middleware/error-handler.js";
 import { specialistsRepo } from "../repositories/specialists.repo.js";
+
+const STATUS_LABELS: Record<SpecialistStatus, string> = {
+  new: "Новый",
+  contacted: "Написали",
+  scheduled: "Запланирован",
+  interviewed: "Интервью",
+  hired: "Нанят",
+  rejected: "Отказ",
+  consult_scheduled: "Созвон назначен",
+  consult_done: "Консультация проведена",
+};
+
+/** Допустимые переходы по типу заявки — docs/adr/ADR-0006-unified-request.md.
+ * rejected достижим из любого нефинального статуса своего цикла. */
+const STATUS_TRANSITIONS: Record<
+  RequestType,
+  Partial<Record<SpecialistStatus, SpecialistStatus[]>>
+> = {
+  hire: {
+    new: ["contacted", "rejected"],
+    contacted: ["scheduled", "rejected"],
+    scheduled: ["interviewed", "rejected"],
+    interviewed: ["hired", "rejected"],
+  },
+  consult: {
+    new: ["contacted", "rejected"],
+    contacted: ["consult_scheduled", "rejected"],
+    consult_scheduled: ["consult_done", "rejected"],
+  },
+};
 
 type ListRow = Awaited<ReturnType<typeof specialistsRepo.list>>["items"][number];
 type DetailRow = NonNullable<Awaited<ReturnType<typeof specialistsRepo.get>>>;
@@ -86,5 +118,26 @@ export const specialistsService = {
   async remove(companyId: string, id: string) {
     const ok = await specialistsRepo.softDelete(companyId, id);
     if (!ok) throw new ApiError(404, ERROR_CODES.NOT_FOUND, "Специалист не найден");
+  },
+
+  async changeStatus(companyId: string, id: string, toStatus: SpecialistStatus) {
+    const context = await specialistsRepo.getStatusContext(companyId, id);
+    if (!context) throw new ApiError(404, ERROR_CODES.NOT_FOUND, "Специалист не найден");
+
+    const fromStatus = context.status;
+    const allowed = STATUS_TRANSITIONS[context.request.type][fromStatus] ?? [];
+    if (!allowed.includes(toStatus)) {
+      throw new ApiError(
+        400,
+        ERROR_CODES.VALIDATION,
+        `Нельзя перевести из «${STATUS_LABELS[fromStatus]}» в «${STATUS_LABELS[toStatus]}»`,
+      );
+    }
+
+    const row = await specialistsRepo.changeStatus(companyId, id, fromStatus, toStatus);
+    if (!row) {
+      throw new ApiError(409, ERROR_CODES.CONFLICT, "Статус уже изменился — обновите страницу");
+    }
+    return toDetailDTO(row);
   },
 };

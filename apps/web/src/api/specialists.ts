@@ -112,6 +112,22 @@ export function useUpdateSpecialist(id: string) {
   });
 }
 
+export function useChangeSpecialistStatus(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (status: SpecialistStatus) =>
+      apiFetch<SpecialistDetailDTO>(`/specialists/${id}/status`, {
+        method: "POST",
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["specialists"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.specialist(id) });
+    },
+  });
+}
+
 export function useDeleteSpecialist() {
   const queryClient = useQueryClient();
 

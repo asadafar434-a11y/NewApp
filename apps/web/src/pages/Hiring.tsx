@@ -39,6 +39,7 @@ import type {
 } from "@orbital/shared";
 import { useCreateRequest, useRequests } from "../api/requests";
 import {
+  useChangeSpecialistStatus,
   useCreateSpecialist,
   useDeleteSpecialist,
   useSpecialist,
@@ -90,6 +91,25 @@ const STATUS_META: Record<SpecialistStatus, { label: string; color: string; bg: 
     label: "Консультация проведена",
     color: "#10b981",
     bg: "rgba(16,185,129,0.12)",
+  },
+};
+
+/** Допустимые переходы по типу заявки — зеркалит apps/api/src/services/specialists.service.ts
+ * (docs/adr/ADR-0006-unified-request.md). Сервер — источник истины, здесь только для UI. */
+const STATUS_TRANSITIONS: Record<
+  RequestType,
+  Partial<Record<SpecialistStatus, SpecialistStatus[]>>
+> = {
+  hire: {
+    new: ["contacted", "rejected"],
+    contacted: ["scheduled", "rejected"],
+    scheduled: ["interviewed", "rejected"],
+    interviewed: ["hired", "rejected"],
+  },
+  consult: {
+    new: ["contacted", "rejected"],
+    contacted: ["consult_scheduled", "rejected"],
+    consult_scheduled: ["consult_done", "rejected"],
   },
 };
 
@@ -748,12 +768,14 @@ function toEditForm(candidate: SpecialistDetailDTO): EditForm {
 
 function CandidateDetail({
   candidate,
+  requestType,
   onBack,
   onDeleted,
   onSchedule,
   existingCall,
 }: {
   candidate: SpecialistDetailDTO;
+  requestType: RequestType | undefined;
   onBack: () => void;
   onDeleted: () => void;
   onSchedule: (call: ScheduledCall) => void;
@@ -767,7 +789,18 @@ function CandidateDetail({
   const [editForm, setEditForm] = useState<EditForm>(() => toEditForm(candidate));
   const updateSpecialist = useUpdateSpecialist(candidate.id);
   const deleteSpecialist = useDeleteSpecialist();
+  const changeStatus = useChangeSpecialistStatus(candidate.id);
   const sm = STATUS_META[candidate.status];
+  const nextStatuses = requestType ? (STATUS_TRANSITIONS[requestType][candidate.status] ?? []) : [];
+
+  const handleStatusChange = async (status: SpecialistStatus) => {
+    try {
+      await changeStatus.mutateAsync(status);
+      toast.success(`Статус изменён на «${STATUS_META[status].label}»`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Не удалось изменить статус");
+    }
+  };
 
   const showToast = (msg: string) => {
     setInlineToast(msg);
@@ -1131,37 +1164,54 @@ function CandidateDetail({
           </div>
         </div>
 
-        {/* Status — переходы статусов появятся в T-021, пока просто индикатор текущего */}
+        {/* Status — текущий статус + допустимые переходы (docs/adr/ADR-0006-unified-request.md) */}
         <div
           style={{
             display: "flex",
             gap: "var(--space-2)",
             marginBottom: "var(--space-5)",
             flexWrap: "wrap",
+            alignItems: "center",
           }}
         >
-          {(Object.keys(STATUS_META) as SpecialistStatus[]).map((s) => (
-            <span
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              color: sm.color,
+              background: sm.bg,
+              border: `1px solid ${sm.color}40`,
+              borderRadius: "var(--radius-full)",
+              padding: "3px 10px",
+              letterSpacing: "var(--tracking-wide)",
+            }}
+          >
+            {sm.label}
+          </span>
+          {nextStatuses.length > 0 && <ChevronRight size={12} color="var(--color-text-muted)" />}
+          {nextStatuses.map((s) => (
+            <button
               key={s}
-              title="Смена статуса появится в T-021"
+              onClick={() => handleStatusChange(s)}
+              disabled={changeStatus.isPending}
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: 10,
-                color: candidate.status === s ? STATUS_META[s].color : "var(--color-text-muted)",
-                background: candidate.status === s ? STATUS_META[s].bg : "transparent",
-                border: `1px solid ${
-                  candidate.status === s
-                    ? STATUS_META[s].color + "40"
-                    : "var(--color-border-subtle)"
-                }`,
+                color: STATUS_META[s].color,
+                background: "transparent",
+                border: `1px solid ${STATUS_META[s].color}40`,
                 borderRadius: "var(--radius-full)",
                 padding: "3px 10px",
+                cursor: changeStatus.isPending ? "not-allowed" : "pointer",
+                transition: "all var(--duration-fast)",
                 letterSpacing: "var(--tracking-wide)",
-                opacity: candidate.status === s ? 1 : 0.45,
+                opacity: changeStatus.isPending ? 0.5 : 1,
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = STATUS_META[s].bg)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              {STATUS_META[s].label}
-            </span>
+              → {STATUS_META[s].label}
+            </button>
           ))}
         </div>
 
@@ -1599,6 +1649,79 @@ function CandidateDetail({
               {candidate.portfolioUrl}
             </a>
           )
+        )}
+
+        {/* Таймлайн смен статуса */}
+        {candidate.statusChanges.length > 0 && (
+          <div style={{ marginTop: "var(--space-6)" }}>
+            <p
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                color: "var(--color-text-muted)",
+                letterSpacing: "var(--tracking-wider)",
+                textTransform: "uppercase",
+                margin: "0 0 var(--space-3) 0",
+              }}
+            >
+              Таймлайн
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+              {candidate.statusChanges.map((change) => (
+                <div
+                  key={change.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-3)",
+                    padding: "var(--space-2) var(--space-3)",
+                    background: "var(--color-bg-elevated)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--color-border-subtle)",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontSize: "var(--text-xs)",
+                      color: "var(--color-text-secondary)",
+                    }}
+                  >
+                    {STATUS_META[change.fromStatus].label}
+                  </span>
+                  <ChevronRight size={11} color="var(--color-text-muted)" />
+                  <span
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontSize: "var(--text-xs)",
+                      fontWeight: 600,
+                      color: STATUS_META[change.toStatus].color,
+                    }}
+                  >
+                    {STATUS_META[change.toStatus].label}
+                  </span>
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    {new Date(change.createdAt).toLocaleDateString("ru-RU", {
+                      day: "numeric",
+                      month: "long",
+                    })}{" "}
+                    ·{" "}
+                    {new Date(change.createdAt).toLocaleTimeString("ru-RU", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
@@ -3203,6 +3326,10 @@ export default function Hiring() {
   const specialists = listQuery.data?.items ?? [];
 
   const detailQuery = useSpecialist(selectedId ?? "");
+  const requestsQuery = useRequests();
+  const selectedRequestType = requestsQuery.data?.items.find(
+    (r) => r.id === detailQuery.data?.requestId,
+  )?.type;
 
   const handleSchedule = (call: ScheduledCall) => {
     setScheduledCalls((prev) => {
@@ -3569,6 +3696,7 @@ export default function Hiring() {
             <CandidateDetail
               key={detailQuery.data.id}
               candidate={detailQuery.data}
+              requestType={selectedRequestType}
               onBack={() => setSelectedId(null)}
               onDeleted={() => setSelectedId(null)}
               onSchedule={handleSchedule}

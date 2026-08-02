@@ -170,3 +170,115 @@ describe("GET /api/v1/specialists", () => {
     expect(body.items).toHaveLength(0);
   });
 });
+
+describe("POST /api/v1/specialists/:id/status", () => {
+  async function changeStatus(cookie: string, id: string, status: string) {
+    return authedRequest(`/api/v1/specialists/${id}/status`, cookie, {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  it("hire-цепочка: new → contacted → scheduled → interviewed → hired", async () => {
+    const { cookie } = await registerAndLogin();
+    const request = await createRequest(cookie, { type: "hire" });
+    const createRes = await authedRequest("/api/v1/specialists", cookie, {
+      method: "POST",
+      body: JSON.stringify(specialistPayload(request.id)),
+    });
+    const specialist = await createRes.json();
+
+    for (const status of ["contacted", "scheduled", "interviewed", "hired"]) {
+      const res = await changeStatus(cookie, specialist.id, status);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.status).toBe(status);
+    }
+
+    const detail = await (
+      await authedRequest(`/api/v1/specialists/${specialist.id}`, cookie)
+    ).json();
+    expect(detail.statusChanges).toHaveLength(4);
+    expect(detail.statusChanges[0]).toMatchObject({ fromStatus: "new", toStatus: "contacted" });
+    expect(detail.statusChanges[3]).toMatchObject({ fromStatus: "interviewed", toStatus: "hired" });
+  });
+
+  it("consult-цепочка: new → contacted → consult_scheduled → consult_done", async () => {
+    const { cookie } = await registerAndLogin();
+    const request = await createRequest(cookie, {
+      type: "consult",
+      priceKopecks: 500_000,
+    });
+    const createRes = await authedRequest("/api/v1/specialists", cookie, {
+      method: "POST",
+      body: JSON.stringify(specialistPayload(request.id)),
+    });
+    const specialist = await createRes.json();
+
+    for (const status of ["contacted", "consult_scheduled", "consult_done"]) {
+      const res = await changeStatus(cookie, specialist.id, status);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.status).toBe(status);
+    }
+  });
+
+  it("rejected достижим из contacted в обоих циклах", async () => {
+    const { cookie } = await registerAndLogin();
+    const request = await createRequest(cookie, { type: "hire" });
+    const createRes = await authedRequest("/api/v1/specialists", cookie, {
+      method: "POST",
+      body: JSON.stringify(specialistPayload(request.id)),
+    });
+    const specialist = await createRes.json();
+
+    await changeStatus(cookie, specialist.id, "contacted");
+    const res = await changeStatus(cookie, specialist.id, "rejected");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe("rejected");
+  });
+
+  it("недопустимый переход (new → hired) — 400 VALIDATION", async () => {
+    const { cookie } = await registerAndLogin();
+    const request = await createRequest(cookie, { type: "hire" });
+    const createRes = await authedRequest("/api/v1/specialists", cookie, {
+      method: "POST",
+      body: JSON.stringify(specialistPayload(request.id)),
+    });
+    const specialist = await createRes.json();
+
+    const res = await changeStatus(cookie, specialist.id, "hired");
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("VALIDATION");
+  });
+
+  it("consult-статус недопустим для hire-специалиста — 400", async () => {
+    const { cookie } = await registerAndLogin();
+    const request = await createRequest(cookie, { type: "hire" });
+    const createRes = await authedRequest("/api/v1/specialists", cookie, {
+      method: "POST",
+      body: JSON.stringify(specialistPayload(request.id)),
+    });
+    const specialist = await createRes.json();
+    await changeStatus(cookie, specialist.id, "contacted");
+
+    const res = await changeStatus(cookie, specialist.id, "consult_scheduled");
+    expect(res.status).toBe(400);
+  });
+
+  it("чужой специалист — 404", async () => {
+    const owner = await registerAndLogin({ company: "Компания владельца" });
+    const stranger = await registerAndLogin({ company: "Компания чужака" });
+    const request = await createRequest(owner.cookie, { type: "hire" });
+    const createRes = await authedRequest("/api/v1/specialists", owner.cookie, {
+      method: "POST",
+      body: JSON.stringify(specialistPayload(request.id)),
+    });
+    const specialist = await createRes.json();
+
+    const res = await changeStatus(stranger.cookie, specialist.id, "contacted");
+    expect(res.status).toBe(404);
+  });
+});

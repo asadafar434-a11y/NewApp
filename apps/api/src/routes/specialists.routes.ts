@@ -1,6 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import {
+  changeStatusSchema,
   createSpecialistSchema,
   listSpecialistsQuerySchema,
   updateSpecialistSchema,
@@ -55,4 +56,18 @@ export const specialistsRoutes = new Hono()
     const { companyId } = c.get("auth");
     await specialistsService.remove(companyId, c.req.param("id")!);
     return c.body(null, 204);
-  });
+  })
+  .post(
+    "/specialists/:id/status",
+    requireAuth,
+    zValidator("json", changeStatusSchema, zodErrorHook),
+    async (c) => {
+      const { companyId } = c.get("auth");
+      const row = await specialistsService.changeStatus(
+        companyId,
+        c.req.param("id")!,
+        c.req.valid("json").status,
+      );
+      return c.json(row);
+    },
+  );
