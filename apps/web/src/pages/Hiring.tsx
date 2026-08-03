@@ -57,6 +57,7 @@ import {
   useUpdateSpecialist,
 } from "../api/specialists";
 import { specialistFileUrl, useUploadFile } from "../api/uploads";
+import { useConversations, useSendMessage } from "../api/chat";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -674,23 +675,35 @@ function ScheduleModal({
 
 function MessageModal({
   candidate,
+  conversationId,
+  conversationError,
+  onRetryConversation,
   onClose,
   onSend,
 }: {
   candidate: SpecialistDetailDTO;
+  conversationId: string | undefined;
+  conversationError: boolean;
+  onRetryConversation: () => void;
   onClose: () => void;
   onSend: () => void;
 }) {
   const [text, setText] = useState(MESSAGE_TEMPLATES[0].text(candidate.name));
-  const [sent, setSent] = useState(false);
+  const sendMessage = useSendMessage(conversationId ?? "");
 
-  const handleSend = () => {
-    setSent(true);
-    setTimeout(() => {
+  const handleSend = async () => {
+    if (!conversationId || !text.trim()) return;
+    try {
+      await sendMessage.mutateAsync(text.trim());
       onSend();
       onClose();
-    }, 1200);
+    } catch {
+      // sendMessage.isError уже отражает ошибку — инлайн-баннер ниже, повтор через ту же кнопку.
+    }
   };
+
+  const sent = sendMessage.isSuccess;
+  const canSend = !!conversationId && !sendMessage.isPending && !sent;
 
   return (
     <div
@@ -776,6 +789,7 @@ function MessageModal({
             <button
               key={tpl.id}
               onClick={() => setText(tpl.text(candidate.name))}
+              disabled={sendMessage.isPending}
               style={{
                 fontFamily: "var(--font-body)",
                 fontSize: "var(--text-xs)",
@@ -808,6 +822,7 @@ function MessageModal({
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={6}
+          disabled={sendMessage.isPending}
           style={{
             width: "100%",
             background: "var(--color-bg-elevated)",
@@ -822,12 +837,68 @@ function MessageModal({
             resize: "vertical",
             boxSizing: "border-box",
             marginBottom: "var(--space-4)",
+            opacity: sendMessage.isPending ? 0.7 : 1,
           }}
         />
 
+        {(conversationError || sendMessage.isError) && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "var(--space-3)",
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              borderRadius: "var(--radius-lg)",
+              padding: "var(--space-3) var(--space-4)",
+              marginBottom: "var(--space-4)",
+            }}
+          >
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-2)",
+                fontFamily: "var(--font-body)",
+                fontSize: "var(--text-xs)",
+                color: "var(--color-accent-danger)",
+              }}
+            >
+              <AlertCircle size={13} />
+              {conversationError
+                ? "Не удалось загрузить диалог с кандидатом"
+                : "Не удалось отправить сообщение"}
+            </span>
+            {conversationError && (
+              <button
+                onClick={onRetryConversation}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-1)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: "var(--text-xs)",
+                  fontWeight: 600,
+                  color: "var(--color-accent-danger)",
+                  background: "none",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "var(--space-1) var(--space-2)",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <RefreshCw size={11} />
+                Повторить
+              </button>
+            )}
+          </div>
+        )}
+
         <button
           onClick={handleSend}
-          disabled={sent}
+          disabled={!canSend}
           style={{
             width: "100%",
             fontFamily: "var(--font-body)",
@@ -839,16 +910,32 @@ function MessageModal({
             border: "none",
             borderRadius: "var(--radius-lg)",
             padding: "var(--space-4)",
-            cursor: sent ? "not-allowed" : "pointer",
+            cursor: canSend ? "pointer" : "not-allowed",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "var(--space-2)",
-            opacity: sent ? 0.7 : 1,
+            opacity: canSend ? 1 : 0.7,
           }}
         >
-          {sent ? <Check size={16} /> : <Send size={16} />}
-          {sent ? "Отправлено!" : "Отправить сообщение"}
+          {sent ? (
+            <Check size={16} />
+          ) : sendMessage.isPending ? (
+            <Loader2 size={16} className="spin" />
+          ) : (
+            <Send size={16} />
+          )}
+          {sent
+            ? "Отправлено!"
+            : sendMessage.isPending
+              ? "Отправка…"
+              : conversationError
+                ? "Диалог недоступен"
+                : !conversationId
+                  ? "Загрузка диалога…"
+                  : sendMessage.isError
+                    ? "Повторить отправку"
+                    : "Отправить сообщение"}
         </button>
       </div>
     </div>
@@ -913,6 +1000,10 @@ function CandidateDetail({
   const updateSpecialist = useUpdateSpecialist(candidate.id);
   const deleteSpecialist = useDeleteSpecialist();
   const changeStatus = useChangeSpecialistStatus(candidate.id);
+  const conversationsQuery = useConversations();
+  const conversationId = conversationsQuery.data?.items.find(
+    (c) => c.specialistId === candidate.id,
+  )?.id;
   const sm = STATUS_META[candidate.status];
   const nextStatuses = requestType ? (STATUS_TRANSITIONS[requestType][candidate.status] ?? []) : [];
 
@@ -1922,6 +2013,9 @@ function CandidateDetail({
       {showMessage && (
         <MessageModal
           candidate={candidate}
+          conversationId={conversationId}
+          conversationError={conversationsQuery.isError}
+          onRetryConversation={() => conversationsQuery.refetch()}
           onClose={() => setShowMessage(false)}
           onSend={handleMessageSent}
         />
